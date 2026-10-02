@@ -1,17 +1,19 @@
 # UniSafe — Render Blueprint
 #
-# Place this file at the repository root.
-# Deploy: Render dashboard → New → Blueprint → point at this repo.
+# Deploys two services from one repo:
+#   unisafe-api       — Express API  (UniSafe/server)
+#   unisafe-dashboard — React SPA    (uniforce-dashboard)
 #
-# After the first deploy, set these env vars in the Render dashboard
-# (they are intentionally left out of this file so secrets never touch Git):
+# Deploy: Render dashboard → New → Blueprint → select ISMU24/unisafe
 #
-#   JWT_ACCESS_SECRET   — 64 random hex chars
-#   JWT_REFRESH_SECRET  — 64 different random hex chars
-#   CLIENT_ORIGINS      — your deployed dashboard URL (e.g. https://unisafe-dashboard.onrender.com)
+# Render wires VITE_API_URL → the API's public URL and
+# CLIENT_ORIGINS → the dashboard's public URL automatically
+# via the `fromService` references below, so you never have to
+# copy-paste URLs between services.
 #
-# Generate secrets locally:
-#   node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+# The only values you must set manually in the Render dashboard after
+# the first deploy are the JWT secrets if you want to override the
+# auto-generated ones.
 
 services:
   - type: web
@@ -43,13 +45,41 @@ services:
         value: "900"
       - key: JWT_REFRESH_EXPIRY
         value: "604800"
-      # Set this to your real dashboard origin after the dashboard is deployed.
       - key: CLIENT_ORIGINS
-        value: https://unisafe-api.onrender.com
+        fromService:
+          name: unisafe-dashboard
+          type: web
+          property: onrender-url
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: VOYAGE_API_KEY
         sync: false
+
+  - type: web
+    name: unisafe-dashboard
+    runtime: static
+    plan: starter
+    region: oregon
+    rootDir: uniforce-dashboard
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: VITE_API_URL
+        fromService:
+          name: unisafe-api
+          type: web
+          property: onrender-url
 
 databases:
   - name: unisafe-db
