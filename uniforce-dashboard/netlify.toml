@@ -1,0 +1,23 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# SPA fallback: every route resolves to index.html so react-router works on
+# hard refresh. Hashed assets are excluded because they must serve from disk.
+#
+# There is deliberately no /socket.io proxy rule here. The dashboard opens its
+# Socket.IO connection straight to the backend origin given by VITE_API_URL, so
+# it needs cross-origin access (configured server-side via CLIENT_ORIGINS) and
+# never calls its own origin.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

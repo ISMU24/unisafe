@@ -1,0 +1,16 @@
+# Build context for the dashboard Dockerfile.
+# The API origin must come from the VITE_API_URL build argument; a local .env
+# would otherwise be baked into the bundle.
+
+node_modules
+dist
+.git
+.gitignore
+
+.env
+.env.*
+!.env.example
+
+*.log
+Dockerfile
+.dockerignore

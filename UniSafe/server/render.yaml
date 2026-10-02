@@ -1,0 +1,54 @@
+# UniSafe API - Render blueprint
+#
+# Deploy from the Render dashboard by choosing "New > Blueprint" and pointing it
+# at this repository, OR create a Web Service manually using the settings below.
+#
+# NOTE ON PATHS: this file lives in server/, so Render's repo-root detection may
+# place it at the repository root instead. If that happens, either move this file
+# to the repository root or create the service manually.
+#
+# Set at minimum in the Render dashboard:
+#   DATABASE_URL          (from a managed PostgreSQL instance)
+#   JWT_ACCESS_SECRET     (32+ random characters)
+#   JWT_REFRESH_SECRET    (32+ different random characters)
+#   CLIENT_ORIGINS        (your deployed dashboard origin, e.g. https://unisafe.onrender.com)
+# Generate secrets with:
+#   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+
+services:
+  - type: web
+    name: unisafe-api
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: unisafe-db
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      # Replace with your real dashboard origin before going live.
+      - key: CLIENT_ORIGINS
+        value: http://localhost:5173
+      # Leave empty to run without AI features.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: VOYAGE_API_KEY
+        sync: false
+
+databases:
+  - name: unisafe-db
+    databaseName: unisafe
+    user: unisafe
+    plan: free

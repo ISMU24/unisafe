@@ -1,0 +1,57 @@
+{
+  "name": "UNISafe",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "expo": {
+    "install": {
+      "exclude": [
+        "react-native-reanimated",
+        "react-native-worklets"
+      ]
+    }
+  },
+  "dependencies": {
+    "@expo/ngrok": "^4.1.0",
+    "@expo/vector-icons": "^15.0.3",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-navigation/native": "^7.3.18",
+    "@react-navigation/stack": "^7.10.24",
+    "babel-preset-expo": "~57.0.0",
+    "expo": "~57.0.26",
+    "expo-font": "~57.0.4",
+    "expo-image-picker": "~57.0.20",
+    "expo-location": "~57.0.20",
+    "expo-splash-screen": "~57.0.9",
+    "expo-system-ui": "~57.0.4",
+    "expo-web-browser": "^57.0.2",
+    "fuse.js": "^7.5.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "~0.86.3",
+    "react-native-gesture-handler": "~2.32",
+    "react-native-reanimated": "~4.5",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-web": "^0.21.0",
+    "react-native-worklets": "~0.10",
+    "socket.io-client": "^4.8.4"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "pdf-parse": "^1.1.1"
+  },
+  "scripts": {
+    "start": "expo start --clear",
+    "web": "expo start --web --clear",
+    "tunnel": "expo start --tunnel --clear",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "server": "cd server && npm install && npm start",
+    "reconcile:policies": "node scripts/reconcile-policies.js",
+    "index:policies": "node scripts/build-policy-index.js"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}

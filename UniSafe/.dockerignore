@@ -1,0 +1,54 @@
+# Build context for UniSafe/server/Dockerfile is this directory (see server/Dockerfile).
+# Only these paths are COPYed by the Dockerfile:
+#   server/package*.json  server/index.js  server/rag.js  server/src/  assets/
+# Everything below is excluded so the context stays small and no local secrets
+# or build output ever reaches the Docker daemon.
+
+# Dependencies (reinstalled inside the image)
+node_modules
+**/node_modules
+
+# Version control and tooling
+.git
+.gitignore
+.kilo
+.expo
+
+# Generated native projects - the Gradle/Xcode output is multi-gigabyte
+android
+ios
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# Local secrets and environment overrides
+.env
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+!**/.env.production.example
+
+# Logs, tests, and local database files
+*.log
+**/tests
+server/data
+*.db
+*.sqlite
+*.sqlite3
+
+# Mobile app source is not part of the API image
+App.js
+app.json
+babel.config.js
+metro.config.js
+screens
+src
+scripts
+index.js
+package.json
+package-lock.json
+eas.json
+DEPLOYMENT.md
+AGENTS.md

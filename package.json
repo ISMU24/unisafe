@@ -1,0 +1,24 @@
+{
+  "name": "unisafe",
+  "version": "1.0.0",
+  "private": true,
+  "description": "UniSafe campus safety platform (Expo app, Express server, React dashboard)",
+  "scripts": {
+    "start": "cd UniSafe && npm start",
+    "web": "cd UniSafe && npm run web",
+    "server": "cd UniSafe/server && npm start",
+    "dashboard": "cd uniforce-dashboard && npm run dev",
+    "db:init": "cd UniSafe/server && npm run db:init",
+    "seed": "cd UniSafe/server && npm run db:seed",
+    "test": "cd UniSafe/server && npm test",
+    "e2e": "cd UniSafe/server && npm run e2e",
+    "reconcile:policies": "cd UniSafe && npm run reconcile:policies",
+    "index:policies": "cd UniSafe && npm run index:policies"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "expo": "^57.0.26"
+  }
+}

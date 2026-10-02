@@ -1,0 +1,33 @@
+node_modules/
+dist/
+build/
+.expo/
+.expo-shared/
+
+# Environment files — never commit real secrets
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local databases
+*.db
+*.db-wal
+*.db-shm
+server/data/
+
+# EAS
+.eas/
+
+# npm cache
+**/.npm-cache/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+*.tsbuildinfo

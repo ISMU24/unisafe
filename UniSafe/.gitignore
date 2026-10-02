@@ -1,0 +1,26 @@
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Native projects are generated from app.json by `expo prebuild` (continuous
+# native generation). They are build output, not source: app.json is the
+# single source of truth, so committing them would only create drift.
+/android/
+/ios/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# Environment files — never commit real secrets
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
