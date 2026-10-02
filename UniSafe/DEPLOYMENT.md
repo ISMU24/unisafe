@@ -380,7 +380,7 @@ incidents, SOS events, alerts and appeals if they should not appear as real data
 
 The alternative bootstrap path, `INITIAL_ADMIN_EMAIL` + `INITIAL_ADMIN_PASSWORD`,
 only runs when no ADMIN account exists yet and now requires explicit, valid
-values - the old `ChangeMe!2024` default is refused.
+values - the old default password is refused.
 
 ### Re-running the seed does not reset passwords
 

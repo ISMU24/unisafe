@@ -17,6 +17,7 @@ describe('Authentication', () => {
   let studentToken;
   let adminUser;
   let studentUser;
+  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD;
 
   beforeEach(async () => {
     // Seed admin
@@ -48,7 +49,7 @@ describe('Authentication', () => {
     it('should return access and refresh tokens for valid credentials', async () => {
       const res = await request(app)
         .post('/api/auth/login')
-        .send({ email: 'admin@unisafe.local', password: 'ChangeMe!2024' });
+        .send({ email: 'admin@unisafe.local', password: adminPassword });
       
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('accessToken');
@@ -81,7 +82,7 @@ describe('Authentication', () => {
       
       const res = await request(app)
         .post('/api/auth/login')
-        .send({ email: 'admin@unisafe.local', password: 'ChangeMe!2024' });
+        .send({ email: 'admin@unisafe.local', password: adminPassword });
       
       expect(res.status).toBe(403);
       expect(res.body.error).toBe('Account is deactivated.');
@@ -92,7 +93,7 @@ describe('Authentication', () => {
     it('should rotate refresh token and return new token pair', async () => {
       const loginRes = await request(app)
         .post('/api/auth/login')
-        .send({ email: 'admin@unisafe.local', password: 'ChangeMe!2024' });
+        .send({ email: 'admin@unisafe.local', password: adminPassword });
       
       const refreshToken = loginRes.body.refreshToken;
       
@@ -128,7 +129,7 @@ describe('Authentication', () => {
     it('should reject reused refresh token', async () => {
       const loginRes = await request(app)
         .post('/api/auth/login')
-        .send({ email: 'admin@unisafe.local', password: 'ChangeMe!2024' });
+        .send({ email: 'admin@unisafe.local', password: adminPassword });
       
       const refreshToken = loginRes.body.refreshToken;
       
@@ -151,7 +152,7 @@ describe('Authentication', () => {
     it('should revoke refresh token', async () => {
       const loginRes = await request(app)
         .post('/api/auth/login')
-        .send({ email: 'admin@unisafe.local', password: 'ChangeMe!2024' });
+        .send({ email: 'admin@unisafe.local', password: adminPassword });
       
       const refreshToken = loginRes.body.refreshToken;
       

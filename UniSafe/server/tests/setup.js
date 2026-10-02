@@ -12,7 +12,7 @@ process.env.JWT_REFRESH_EXPIRY = '604800';
 // The admin bootstrap is refused unless these are explicitly configured, so
 // tests declare their own fixture rather than depending on a default password.
 process.env.INITIAL_ADMIN_EMAIL = 'admin@unisafe.local';
-process.env.INITIAL_ADMIN_PASSWORD = 'ChangeMe!2024';
+process.env.INITIAL_ADMIN_PASSWORD = 'TestAdmin1234!';
 // Use a file-based SQLite database for tests so all test files share the same DB
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

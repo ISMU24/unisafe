@@ -128,7 +128,7 @@ describe('Realtime push (live server subprocess)', () => {
 
     // The seeded admin is the only account with a staff role available at boot.
     const adminEmail = process.env.INITIAL_ADMIN_EMAIL || 'admin@unisafe.local';
-    const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || 'ChangeMe!2024';
+    const adminPassword = process.env.INITIAL_ADMIN_PASSWORD;
     const adminLogin = await api('/api/auth/login', {
       method: 'POST',
       body: { email: adminEmail, password: adminPassword },
