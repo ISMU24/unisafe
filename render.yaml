@@ -1,0 +1,59 @@
+# UniSafe — Render Blueprint
+#
+# Place this file at the repository root.
+# Deploy: Render dashboard → New → Blueprint → point at this repo.
+#
+# After the first deploy, set these env vars in the Render dashboard
+# (they are intentionally left out of this file so secrets never touch Git):
+#
+#   JWT_ACCESS_SECRET   — 64 random hex chars
+#   JWT_REFRESH_SECRET  — 64 different random hex chars
+#   CLIENT_ORIGINS      — your deployed dashboard URL (e.g. https://unisafe-dashboard.onrender.com)
+#
+# Generate secrets locally:
+#   node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+
+services:
+  - type: web
+    name: unisafe-api
+    runtime: node
+    plan: starter
+    region: oregon
+    rootDir: UniSafe/server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: unisafe-db
+          property: connectionString
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRY
+        value: "900"
+      - key: JWT_REFRESH_EXPIRY
+        value: "604800"
+      # Set this to your real dashboard origin after the dashboard is deployed.
+      - key: CLIENT_ORIGINS
+        value: https://unisafe-api.onrender.com
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: VOYAGE_API_KEY
+        sync: false
+
+databases:
+  - name: unisafe-db
+    databaseName: unisafe
+    user: unisafe
+    plan: free
+    region: oregon
