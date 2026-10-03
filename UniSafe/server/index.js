@@ -28,6 +28,10 @@ const POLICIES_DIR = path.join(ASSETS_DIR, 'Policies');
 const app = express();
 const httpServer = createServer(app);
 
+// Render (and most PaaS) sit behind a load balancer. Without this, req.ip is
+// always the proxy's internal address instead of the real client IP.
+app.set('trust proxy', 1);
+
 // ── Allowed browser origins.
 // CLIENT_ORIGINS is the documented variable; ALLOWED_ORIGINS is kept as an
 // alias so existing deployments keep working. Requests with no Origin header

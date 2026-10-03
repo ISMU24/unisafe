@@ -12,6 +12,7 @@ import Users from './pages/Users.jsx'
 import Profile from './pages/Profile.jsx'
 import Settings from './pages/Settings.jsx'
 import AITools from './pages/AITools.jsx'
+import AuditLogs from './pages/AuditLogs.jsx'
 import { LoadingBlock } from './components/UniForceUI.jsx'
 import { RESPONDER_ROLES } from './utils/roles.js'
 
@@ -51,6 +52,7 @@ function AppRoutes() {
         <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<Settings />} />
         <Route path="ai-tools" element={<AITools />} />
+        <Route path="audit-logs" element={<RoleRoute allow={['ADMIN', 'ICT_ADMIN']}><AuditLogs /></RoleRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
