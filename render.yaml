@@ -22,7 +22,7 @@ services:
     plan: starter
     region: oregon
     rootDir: UniSafe/server
-    buildCommand: npm install
+    buildCommand: npm install && npm run db:init
     startCommand: npm start
     healthCheckPath: /health
     autoDeploy: true
