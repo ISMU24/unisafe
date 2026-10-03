@@ -100,10 +100,14 @@ async function serverRequest(method, endpoint, body, auth = true, retry = true) 
     return serverRequest(method, endpoint, body, auth, false);
   }
   if (!res.ok) {
-    const error = new Error([502, 503, 504].includes(res.status)
+    const policyUnavailable = endpoint === '/api/policy-search' && data.code === 'POLICY_UNAVAILABLE';
+    const error = new Error(policyUnavailable
+      ? 'Policy Q&A is not available right now. You can still browse the policies.'
+      : [502, 503, 504].includes(res.status)
       ? 'The server is temporarily unavailable or waking up. Wait 30-60 seconds and check the status before retrying. Delivery is not confirmed.'
       : (data.error || `Request failed: ${res.status}`));
     error.status = res.status;
+    if (policyUnavailable) error.code = 'POLICY_UNAVAILABLE';
     throw error;
   }
   return data;

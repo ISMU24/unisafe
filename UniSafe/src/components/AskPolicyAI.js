@@ -41,10 +41,10 @@ export default function AskPolicyAI() {
       };
       setMessages(prev => [...prev, aiMsg]);
     } catch (e) {
-      const msg = e.message.includes('fetch') || e.message.includes('Network') || e.message.includes('Failed to fetch')
-        ? 'Cannot reach policy server. Make sure the backend is running on port 3001.'
-        : e.message;
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', text: `Error: ${msg}` }]);
+      const msg = e.code === 'POLICY_UNAVAILABLE'
+        ? 'Policy Q&A is not available right now. You can still use Browse to read the policies.'
+        : (e.message || 'Policy Q&A could not be reached. Please try again later.');
+      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', text: msg }]);
     } finally {
       setLoading(false);
     }

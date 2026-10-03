@@ -73,3 +73,62 @@ test('timeout, network and unavailable-server failures explain waking up and do 
     assert.equal(client.calls.length, 1);
   }
 });
+
+test('disabled policy AI keeps its unavailable message instead of suggesting a cold-start retry', async () => {
+  const client = load({ envUrl: 'https://api.example', fetchImpl: async () => ({
+    ok: false, status: 503, json: async () => ({ code: 'POLICY_UNAVAILABLE', error: 'Policy Q&A is not available.' }),
+  }) });
+  await assert.rejects(client.api.askPolicy('What is the policy?'), error => {
+    assert.equal(error.code, 'POLICY_UNAVAILABLE');
+    assert.match(error.message, /not available.*browse/);
+    assert.doesNotMatch(error.message, /waking|Delivery/);
+    return true;
+  });
+  assert.equal(client.calls.length, 1);
+});
+
+test('Ask AI renders a useful unavailable reply and clears its loading state', async () => {
+  const states = [];
+  let cursor = 0;
+  const React = {
+    createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
+    useState: initial => {
+      const index = cursor++;
+      if (!(index in states)) states[index] = initial;
+      return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value; }];
+    },
+    useRef: () => ({ current: null }), useEffect: () => {},
+  };
+  const native = Object.fromEntries(['View', 'Text', 'TouchableOpacity', 'FlatList', 'TextInput', 'ActivityIndicator'].map(name => [name, name]));
+  native.StyleSheet = { create: styles => styles };
+  native.Keyboard = { dismiss: () => {} };
+  const exports = {};
+  const dependencies = {
+    react: React, 'react-native': native, '@expo/vector-icons': { MaterialIcons: 'MaterialIcons' },
+    '../ThemeContext': { useTheme: () => ({ colors: {} }) },
+    '../utils/api': { api: { askPolicy: async () => {
+      const error = new Error('Unavailable'); error.code = 'POLICY_UNAVAILABLE'; throw error;
+    } } },
+  };
+  const component = transformSync(fs.readFileSync(new URL('../src/components/AskPolicyAI.js', import.meta.url), 'utf8'), {
+    filename: 'AskPolicyAI.js', configFile: false, babelrc: false,
+    plugins: [require.resolve('@babel/plugin-transform-react-jsx'), require.resolve('@babel/plugin-transform-modules-commonjs')],
+  });
+  vm.runInNewContext(component.code, { exports, require: name => dependencies[name] });
+  const render = () => { cursor = 0; return exports.default(); };
+  const find = (node, type) => {
+    if (!node || typeof node !== 'object') return null;
+    if (node.type === type) return node;
+    for (const child of node.props?.children?.flat(Infinity) || []) {
+      const match = find(child, type); if (match) return match;
+    }
+    return null;
+  };
+  find(render(), 'TextInput').props.onChangeText('What is the policy?');
+  await find(render(), 'TouchableOpacity').props.onPress();
+  const tree = render();
+  const reply = find(tree, 'FlatList').props.data.at(-1).text;
+  assert.match(reply, /not available.*Browse/);
+  assert.doesNotMatch(reply, /Error:|port 3001|API_KEY/);
+  assert.equal(find(tree, 'ActivityIndicator'), null);
+});

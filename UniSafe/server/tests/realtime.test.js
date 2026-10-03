@@ -155,6 +155,14 @@ describe('Realtime push (live server subprocess)', () => {
     }
   });
 
+  it('returns a clear policy-unavailable response when AI keys are absent', async () => {
+    const res = await api('/api/policy-search', { method: 'POST', body: { question: 'What is the student policy?' } });
+    expect(res.status).toBe(503);
+    expect(res.data).toEqual({ code: 'POLICY_UNAVAILABLE',
+      error: 'Policy Q&A is not available right now. You can still browse the policies.' });
+    expect((await api('/health')).status).toBe(200);
+  });
+
   it('shares the configured browser origin between HTTP and Socket.IO', async () => {
     const origin = 'https://dashboard.example.test';
     for (const endpoint of ['/health', '/socket.io/?EIO=4&transport=polling']) {

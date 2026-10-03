@@ -12,6 +12,8 @@
  */
 import 'dotenv/config';
 import crypto from 'crypto';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import db, { arrayParameter, isPostgres, closePool, initializeDatabase } from '../src/config/db.js';
 import { hashPassword, meetsPasswordStrength } from '../src/auth/database.js';
 
@@ -64,6 +66,8 @@ function generatePassword() {
 }
 
 const credentials = [];
+
+const demoText = text => `DEMO ONLY - no response required: ${text}`;
 
 async function seedUser({ key, envPrefix, role, email, full_name, student_or_staff_id, phone }) {
   const explicitPassword = process.env[`${envPrefix}_PASSWORD`];
@@ -121,7 +125,8 @@ async function seedIdempotently(sql, params) {
   return (result.changes ?? 0) > 0;
 }
 
-async function main() {
+export async function seedDatabase() {
+  credentials.length = 0;
   await initializeDatabase();
   console.log(`Seeding ${isPostgres() ? 'PostgreSQL' : 'SQLite'} database...`);
 
@@ -146,39 +151,39 @@ async function main() {
     // ── Users ────────────────────────────────────────────────────────────
     const adminId = await seedUser({
       key: 'Admin', envPrefix: 'SEED_ADMIN', role: 'ADMIN',
-      email: 'admin@pnguot.ac.pg', full_name: 'System Administrator',
-      student_or_staff_id: 'ADM-0001', phone: '+675 7123 4567',
+      email: 'admin@example.invalid', full_name: 'Demo Administrator',
+      student_or_staff_id: 'DEMO-ADMIN', phone: null,
     });
     await seedUser({
       key: 'ICT admin', envPrefix: 'SEED_ICT', role: 'ICT_ADMIN',
-      email: 'ict@pnguot.ac.pg', full_name: 'ICT Administrator',
-      student_or_staff_id: 'ICT-0001', phone: '+675 7123 4571',
+      email: 'ict@example.invalid', full_name: 'Demo ICT Administrator',
+      student_or_staff_id: 'DEMO-ICT', phone: null,
     });
     const securityId = await seedUser({
       key: 'Security officer', envPrefix: 'SEED_SECURITY', role: 'SECURITY',
-      email: 'security@pnguot.ac.pg', full_name: 'Officer T. Kaupa',
-      student_or_staff_id: 'SEC-001', phone: '+675 7123 4568',
+      email: 'security@example.invalid', full_name: 'Demo Security Officer',
+      student_or_staff_id: 'DEMO-SECURITY', phone: null,
     });
     const medicalId = await seedUser({
       key: 'Medical responder', envPrefix: 'SEED_MEDICAL', role: 'MEDICAL',
-      email: 'medical@pnguot.ac.pg', full_name: 'Officer M. Sogeri',
-      student_or_staff_id: 'MED-001', phone: '+675 7123 4569',
+      email: 'medical@example.invalid', full_name: 'Demo Medical Responder',
+      student_or_staff_id: 'DEMO-MEDICAL', phone: null,
     });
     const staffId = await seedUser({
       key: 'Staff', envPrefix: 'SEED_STAFF', role: 'STAFF',
-      email: 'staff@pnguot.ac.pg', full_name: 'Steven Namaliu',
-      student_or_staff_id: 'STF-0219', phone: '+675 7123 4570',
+      email: 'staff@example.invalid', full_name: 'Demo Staff Member',
+      student_or_staff_id: 'DEMO-STAFF', phone: null,
     });
     const studentIds = {};
     for (const student of [
-      { envPrefix: 'SEED_STUDENT1', email: '23201047@student.pnguot.ac.pg', full_name: 'Israel Muge', student_or_staff_id: '23201047' },
-      { envPrefix: 'SEED_STUDENT2', email: '23198812@student.pnguot.ac.pg', full_name: 'Rachel Waigani', student_or_staff_id: '23198812' },
-      { envPrefix: 'SEED_STUDENT3', email: '23205511@student.pnguot.ac.pg', full_name: 'Kaupa Tolo', student_or_staff_id: '23205511' },
+      { envPrefix: 'SEED_STUDENT1', email: 'student1@example.invalid', full_name: 'Demo Student One', student_or_staff_id: 'DEMO-STUDENT1' },
+      { envPrefix: 'SEED_STUDENT2', email: 'student2@example.invalid', full_name: 'Demo Student Two', student_or_staff_id: 'DEMO-STUDENT2' },
+      { envPrefix: 'SEED_STUDENT3', email: 'student3@example.invalid', full_name: 'Demo Student Three', student_or_staff_id: 'DEMO-STUDENT3' },
     ]) {
       studentIds[student.envPrefix] = await seedUser({
         key: `Student (${student.full_name})`, envPrefix: student.envPrefix, role: 'STUDENT',
         email: student.email, full_name: student.full_name,
-        student_or_staff_id: student.student_or_staff_id, phone: '+675 7123 4572',
+        student_or_staff_id: student.student_or_staff_id, phone: null,
       });
     }
 
@@ -232,8 +237,8 @@ async function main() {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (id) DO NOTHING
       `, [
-        inc.id, inc.reporter, inc.category, inc.title, inc.description,
-        inc.latitude ?? null, inc.longitude ?? null, inc.location_text,
+        inc.id, inc.reporter, inc.category, demoText(inc.title), demoText(inc.description),
+        inc.latitude ?? null, inc.longitude ?? null, demoText(inc.location_text),
         inc.priority, inc.status, Boolean(inc.is_anonymous), Boolean(inc.is_sos), inc.assignee,
         inc.acknowledged_at ?? null, inc.assigned_at ?? null,
         inc.responding_at ?? null, inc.resolved_at ?? null,
@@ -252,14 +257,14 @@ async function main() {
         await db.prepare(`
           INSERT INTO incident_status_history (id, incident_id, old_status, new_status, changed_by, note, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(uuid(), inc.id, old_status, new_status, changed_by, note, created_at);
+        `).run(uuid(), inc.id, old_status, new_status, changed_by, demoText(note), created_at);
       }
 
       if (inc.assignee && inc.assigned_at) {
         await db.prepare(`
           INSERT INTO incident_assignments (id, incident_id, assignee_id, assigned_by, status, note, created_at, completed_at)
           VALUES (?, ?, ?, ?, 'Assigned', ?, ?, ?)
-        `).run(uuid(), inc.id, inc.assignee, inc.assignee, 'Auto-assigned on status change', inc.assigned_at,
+        `).run(uuid(), inc.id, inc.assignee, inc.assignee, demoText('Auto-assigned on status change'), inc.assigned_at,
           inc.status === 'Resolved' ? inc.resolved_at : null);
       }
     }
@@ -272,20 +277,20 @@ async function main() {
       VALUES (?, ?, ?, ?, ?, 'Responding', ?, ?, ?, ?, ?, ?)
       ON CONFLICT (id) DO NOTHING
     `, [
-      sosId, studentIds.SEED_STUDENT2, -6.6735, 146.9970, 'Sporting Facilities',
+      sosId, studentIds.SEED_STUDENT2, -6.6735, 146.9970, demoText('Simulated SOS at Sporting Facilities'),
       securityId, daysAgo(10), medicalId, daysAgo(10), daysAgo(10), daysAgo(10),
     ])) {
       await db.prepare(`
         INSERT INTO sos_status_history (id, sos_id, old_status, new_status, changed_by, note, created_at)
-        VALUES (?, ?, NULL, 'Active', ?, 'SOS alert triggered. Help is on the way.', ?)
+        VALUES (?, ?, NULL, 'Active', ?, 'DEMO ONLY - simulated SOS; no response required.', ?)
       `).run(uuid(), sosId, studentIds.SEED_STUDENT2, daysAgo(10));
       await db.prepare(`
         INSERT INTO sos_status_history (id, sos_id, old_status, new_status, changed_by, note, created_at)
-        VALUES (?, ?, 'Active', 'Acknowledged', ?, 'SOS acknowledged by security.', ?)
+        VALUES (?, ?, 'Active', 'Acknowledged', ?, 'DEMO ONLY - simulated acknowledgement.', ?)
       `).run(uuid(), sosId, securityId, daysAgo(10));
       await db.prepare(`
         INSERT INTO sos_status_history (id, sos_id, old_status, new_status, changed_by, note, created_at)
-        VALUES (?, ?, 'Acknowledged', 'Responding', ?, 'Medical responder dispatched.', ?)
+        VALUES (?, ?, 'Acknowledged', 'Responding', ?, 'DEMO ONLY - simulated dispatch; nobody dispatched.', ?)
       `).run(uuid(), sosId, medicalId, daysAgo(10));
     }
 
@@ -315,6 +320,8 @@ async function main() {
     ];
 
     for (const alert of alerts) {
+      alert.title = demoText(alert.title);
+      alert.message = demoText(alert.message);
       const existing = await db.prepare('SELECT id FROM safety_alerts WHERE title = ?').get(alert.title);
       if (existing) continue;
       await db.prepare(`
@@ -342,6 +349,9 @@ async function main() {
     ];
 
     for (const request of assistance) {
+      request.title = demoText(request.title);
+      request.description = demoText(request.description);
+      request.location_text = demoText(request.location_text);
       const existing = await db.prepare('SELECT id FROM assistance_requests WHERE title = ? AND requester_id = ?')
         .get(request.title, request.requester);
       if (existing) continue;
@@ -358,15 +368,15 @@ async function main() {
     const anonymousIncidentId = incidents.find(
       (inc) => inc.title === 'Broken perimeter light, Block C'
     )?.id;
-    const existingAppeal = await db.prepare('SELECT id FROM appeals WHERE title = ?').get('Appeal on incident handling');
+    const existingAppeal = await db.prepare('SELECT id FROM appeals WHERE title = ?').get(demoText('Appeal on incident handling'));
     if (!existingAppeal && anonymousIncidentId) {
       await db.prepare(`
         INSERT INTO appeals (id, appellant_id, related_incident_id, type, title, description,
           status, reviewer_id, decision, decided_at, created_at, updated_at)
         VALUES (?, ?, ?, 'Incident Decision', ?, ?, 'Under Review', ?, NULL, NULL, ?, ?)
       `).run(uuid(), studentIds.SEED_STUDENT3, anonymousIncidentId,
-        'Appeal on incident handling',
-        'I would like to request a review of how my anonymous report was handled.',
+        demoText('Appeal on incident handling'),
+        demoText('Fictional request to review the handling of a simulated anonymous report.'),
         adminId, daysAgo(4), daysAgo(4));
     }
   });
@@ -383,7 +393,7 @@ async function main() {
       );
     }
     console.log('\nThese passwords are shown once and were not read from any source.');
-    console.log('Store them securely and change them before handing the system over.');
+    console.log('Keep these generated passwords in a password manager and share only the intended demo accounts privately.');
   }
 
   const untouched = credentials.filter(c => !c.passwordIsKnown);
@@ -398,7 +408,8 @@ async function main() {
   console.log('');
 }
 
-main()
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+seedDatabase()
   .then(async () => {
     await closePool();
     process.exit(0);
@@ -409,3 +420,4 @@ main()
     await closePool().catch(() => {});
     process.exit(1);
   });
+}

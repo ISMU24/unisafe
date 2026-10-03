@@ -373,15 +373,17 @@ Anything you do not supply through `SEED_*` is generated with
 
 | Role | Email |
 |---|---|
-| Admin | `admin@pnguot.ac.pg` |
-| ICT admin | `ict@pnguot.ac.pg` |
-| Security officer | `security@pnguot.ac.pg` |
-| Medical responder | `medical@pnguot.ac.pg` |
-| Staff | `staff@pnguot.ac.pg` |
-| Students | `23201047@`, `23198812@`, `23205511@student.pnguot.ac.pg` |
+| Admin | `admin@example.invalid` |
+| ICT admin | `ict@example.invalid` |
+| Security officer | `security@example.invalid` |
+| Medical responder | `medical@example.invalid` |
+| Staff | `staff@example.invalid` |
+| Students | `student1@example.invalid`, `student2@example.invalid`, `student3@example.invalid` |
 
-Change every one of these before handing the system over, and delete the seeded
-incidents, SOS events, alerts and appeals if they should not appear as real data.
+Keep the generated passwords in a password manager and share only the intended
+demo accounts privately. New demo records are labelled `DEMO ONLY`; use a unique
+`LECTURER TEST <time>` marker for your test incident. Existing data is not modified
+or removed by this fixture update. See the Windows guide for password-change options.
 
 The alternative bootstrap path, `INITIAL_ADMIN_EMAIL` + `INITIAL_ADMIN_PASSWORD`,
 only runs when no ADMIN account exists yet and now requires explicit, valid
@@ -433,9 +435,9 @@ a live server:
 ```powershell
 cd UniSafe/server
 $env:BASE_URL = "https://unisafe-api.onrender.com"
-$env:ADMIN_EMAIL    = "admin@pnguot.ac.pg";    $env:ADMIN_PASSWORD    = "..."
-$env:SECURITY_EMAIL = "security@pnguot.ac.pg"; $env:SECURITY_PASSWORD = "..."
-$env:STUDENT_EMAIL  = "23201047@student.pnguot.ac.pg"; $env:STUDENT_PASSWORD = "..."
+$env:ADMIN_EMAIL    = "admin@example.invalid";    $env:ADMIN_PASSWORD    = "..."
+$env:SECURITY_EMAIL = "security@example.invalid"; $env:SECURITY_PASSWORD = "..."
+$env:STUDENT_EMAIL  = "student1@example.invalid"; $env:STUDENT_PASSWORD = "..."
 npm run e2e
 ```
 

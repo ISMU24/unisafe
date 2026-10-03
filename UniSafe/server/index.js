@@ -138,7 +138,10 @@ app.post('/api/policy-search', async (req, res) => {
     if (result?.error) {
       // Missing AI keys or a missing index is a configuration gap, not a crash:
       // the rest of the platform stays up and keeps serving.
-      return res.status(503).json(result);
+      return res.status(503).json({
+        code: 'POLICY_UNAVAILABLE',
+        error: 'Policy Q&A is not available right now. You can still browse the policies.',
+      });
     }
     res.json(result);
   } catch (e) {
