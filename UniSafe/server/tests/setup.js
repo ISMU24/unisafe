@@ -1,7 +1,10 @@
 import { beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import db, { initializeDatabase, closePool, isPostgres } from '../src/config/db.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
+// Isolate before importing db; never use inherited hosted database configuration.
+process.env.DATABASE_URL = '';
+process.env.DB_HOST = '';
+process.env.SQLITE_PATH = ':memory:';
+process.env.DOTENV_CONFIG_PATH = '__unisafe_test_no_dotenv__';
+const { default: db, initializeDatabase, closePool, isPostgres } = await import('../src/config/db.js');
 
 // Set test environment
 process.env.NODE_ENV = 'test';
@@ -13,10 +16,6 @@ process.env.JWT_REFRESH_EXPIRY = '604800';
 // tests declare their own fixture rather than depending on a default password.
 process.env.INITIAL_ADMIN_EMAIL = 'admin@unisafe.local';
 process.env.INITIAL_ADMIN_PASSWORD = 'TestAdmin1234!';
-// Use a file-based SQLite database for tests so all test files share the same DB
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-process.env.SQLITE_PATH = path.join(__dirname, 'test.db');
 
 beforeAll(async () => {
   await initializeDatabase();
@@ -24,13 +23,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await closePool();
-  // Clean up test database file
-  try {
-    const fs = await import('fs');
-    fs.unlinkSync(process.env.SQLITE_PATH);
-  } catch (e) {
-    // ignore
-  }
 });
 
 beforeEach(async () => {

@@ -69,6 +69,7 @@ const REALTIME_EVENTS = [
 ];
 
 export function connectRealtime() {
+  if (!REST_BASE) return Promise.resolve(null);
   // Always resolves to the socket, or null when there is no session to
   // authenticate with. It used to return the live socket synchronously once
   // connected and a Promise while connecting, so callers could not tell which

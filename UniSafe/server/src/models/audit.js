@@ -1,4 +1,4 @@
-import db from '../config/db.js';
+import db, { parseJson } from '../config/db.js';
 import crypto from 'crypto';
 
 function generateId() {
@@ -7,6 +7,15 @@ function generateId() {
 
 function now() {
   return new Date().toISOString();
+}
+
+function normalizeAudit(row) {
+  return {
+    ...row,
+    old_values: parseJson(row.old_values, null),
+    new_values: parseJson(row.new_values, null),
+    success: Boolean(row.success),
+  };
 }
 
 export async function createAuditLog(data) {
@@ -35,7 +44,7 @@ export async function createAuditLog(data) {
     new_values ?? null,
     ip_address, user_agent, Boolean(success), error_message, now());
 
-  return await db.prepare(`SELECT * FROM audit_logs WHERE id = ?`).get(id);
+  return normalizeAudit(await db.prepare(`SELECT * FROM audit_logs WHERE id = ?`).get(id));
 }
 
 export async function listAuditLogs(filters = {}) {
@@ -86,14 +95,7 @@ export async function listAuditLogs(filters = {}) {
   params.push(limit, offset);
 
   const results = await db.prepare(query).all(...params);
-  return results.map(r => ({
-    ...r,
-    // PostgreSQL jsonb columns are returned as already-parsed objects by the
-    // pg driver. SQLite stores them as JSON text. Only parse when it is a string.
-    old_values: typeof r.old_values === 'string' ? JSON.parse(r.old_values) : (r.old_values ?? null),
-    new_values: typeof r.new_values === 'string' ? JSON.parse(r.new_values) : (r.new_values ?? null),
-    success: Boolean(r.success),
-  }));
+  return results.map(normalizeAudit);
 }
 
 export default {

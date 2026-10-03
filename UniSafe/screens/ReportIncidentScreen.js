@@ -302,6 +302,7 @@ export default function ReportIncidentScreen({ navigation }) {
       {step === 1 && <StepDetails form={form} setForm={setForm} triage={triage} duplicate={duplicate} colors={colors} />}
       {step === 2 && <StepLocation form={form} setForm={setForm} colors={colors} />}
       {step === 3 && <StepReview form={form} incidentId={incidentRef.current} triage={triage} duplicate={duplicate} colors={colors} />}
+      {loading && <Text accessibilityRole="alert" style={[s.reviewNote, { color: colors.textMuted }]}>Sending report. The server may take 30-60 seconds to wake up; please wait for confirmation.</Text>}
       <View style={[s.footer, { backgroundColor: colors.surfaceCard, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
         {step > 0 && (
           <TouchableOpacity style={[s.backBtn, { backgroundColor: colors.surfaceAlt }]} onPress={() => setStep(p => p - 1)} activeOpacity={0.8}>

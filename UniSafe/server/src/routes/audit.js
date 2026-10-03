@@ -10,7 +10,7 @@ const querySchema = z.object({
   action: z.string().optional(),
   resource_type: z.string().optional(),
   resource_id: z.string().uuid().optional(),
-  success: z.coerce.boolean().optional(),
+  success: z.enum(['true', 'false']).transform(value => value === 'true').optional(),
   start_date: z.string().datetime().optional(),
   end_date: z.string().datetime().optional(),
   limit: z.coerce.number().int().min(1).max(500).optional(),

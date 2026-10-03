@@ -95,12 +95,16 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 
 // ── Health
-// Bare /health is what most PaaS load balancers poll by default, so it answers
-// with the smallest possible payload and never touches the database.
+// Both public health endpoints report database readiness without authentication.
 const startedAt = Date.now();
 
-app.get('/health', (_, res) => {
-  res.json({ status: 'ok', uptime: Math.floor((Date.now() - startedAt) / 1000) });
+app.get('/health', async (_, res) => {
+  try {
+    const dbStatus = await checkConnection();
+    res.json({ status: 'ok', uptime: Math.floor((Date.now() - startedAt) / 1000), db: dbStatus });
+  } catch {
+    res.status(503).json({ status: 'error', db: { connected: false } });
+  }
 });
 
 app.get('/api/health', async (_, res) => {
@@ -118,7 +122,7 @@ app.get('/api/health', async (_, res) => {
       status: 'error', 
       index: fs.existsSync(indexPath) ? 'loaded' : 'missing', 
       rag: ragStatus(),
-      db: { connected: false, error: err.message }
+      db: { connected: false }
     });
   }
 });

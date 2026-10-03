@@ -13,7 +13,7 @@
 import 'dotenv/config';
 import crypto from 'crypto';
 import db, { arrayParameter, isPostgres, closePool, initializeDatabase } from '../src/config/db.js';
-import { hashPassword } from '../src/auth/database.js';
+import { hashPassword, meetsPasswordStrength } from '../src/auth/database.js';
 
 function uuid() {
   return crypto.randomUUID();
@@ -39,7 +39,7 @@ function hoursFromNow(hours) {
   return new Date(Date.now() + hours * 3600000).toISOString();
 }
 
-/** 18+ chars with a digit, matching the server's own password policy. */
+/** 16 chars with a digit, matching the server's own password policy. */
 function generatePassword() {
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   const lower = 'abcdefghijkmnpqrstuvwxyz';
@@ -67,6 +67,9 @@ const credentials = [];
 
 async function seedUser({ key, envPrefix, role, email, full_name, student_or_staff_id, phone }) {
   const explicitPassword = process.env[`${envPrefix}_PASSWORD`];
+  if (explicitPassword && !meetsPasswordStrength(explicitPassword)) {
+    throw new Error(`${envPrefix}_PASSWORD must have at least 8 characters and a number.`);
+  }
   const password = explicitPassword || generatePassword();
   const resolvedEmail = process.env[`${envPrefix}_EMAIL`] || email;
 

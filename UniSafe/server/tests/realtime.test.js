@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { spawn } from 'child_process';
 import path from 'path';
-import os from 'os';
-import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { io as ioClient } from 'socket.io-client';
@@ -18,7 +16,6 @@ const PORT = 3231;
 const BASE = `http://127.0.0.1:${PORT}`;
 
 let child;
-let tmpDir;
 let studentToken;
 let securityToken;
 
@@ -70,14 +67,11 @@ describe('Realtime push (live server subprocess)', () => {
   const sockets = [];
 
   beforeAll(async () => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'unisafe-rt-'));
-    const dbPath = path.join(tmpDir, 'rt.db');
-
     // Strip all database connection variables from the inherited environment
     // and pass empty strings for DATABASE_URL and DB_HOST so the subprocess
     // dotenv/config import does NOT override them (dotenv skips variables that
     // are already set in process.env, even to an empty string). This forces the
-    // subprocess to fall back to the SQLITE_PATH SQLite file rather than
+    // subprocess to use in-memory SQLite rather than
     // attempting to connect to the Docker Postgres container (which is not
     // running during unit tests).
     const { DATABASE_URL, DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DB_SSL, ...inheritedEnv } = process.env;
@@ -90,11 +84,15 @@ describe('Realtime push (live server subprocess)', () => {
         DB_HOST: '',
         PORT: String(PORT),
         NODE_ENV: 'test',
-        SQLITE_PATH: dbPath,
+        SQLITE_PATH: ':memory:',
         // Production requires signing secrets of at least 32 characters.
         JWT_ACCESS_SECRET: 'realtime-test-access-secret-value-0123456789',
         JWT_REFRESH_SECRET: 'realtime-test-refresh-secret-value-9876543210',
-        CLIENT_ORIGINS: '*',
+        CLIENT_ORIGINS: 'https://dashboard.example.test',
+        ALLOWED_ORIGINS: '',
+        ANTHROPIC_API_KEY: '',
+        VOYAGE_API_KEY: '',
+        DOTENV_CONFIG_PATH: '__unisafe_test_no_dotenv__',
       },
       stdio: 'ignore',
     });
@@ -140,9 +138,6 @@ describe('Realtime push (live server subprocess)', () => {
   afterAll(async () => {
     sockets.forEach((s) => { try { s.close(); } catch { /* already closed */ } });
     if (child) child.kill();
-    if (tmpDir) {
-      try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best effort */ }
-    }
   }, 30000);
 
   async function open(token) {
@@ -151,10 +146,26 @@ describe('Realtime push (live server subprocess)', () => {
     return socket;
   }
 
-  it('serves a health endpoint', async () => {
-    const res = await api('/api/health');
-    expect(res.status).toBe(200);
-    expect(res.data.status).toBe('ok');
+  it('serves both health endpoints without auth and reports database status', async () => {
+    for (const endpoint of ['/health', '/api/health']) {
+      const res = await api(endpoint);
+      expect(res.status).toBe(200);
+      expect(res.data.status).toBe('ok');
+      expect(res.data.db).toEqual({ engine: 'sqlite', connected: true });
+    }
+  });
+
+  it('shares the configured browser origin between HTTP and Socket.IO', async () => {
+    const origin = 'https://dashboard.example.test';
+    for (const endpoint of ['/health', '/socket.io/?EIO=4&transport=polling']) {
+      const res = await fetch(`${BASE}${endpoint}`, { headers: { Origin: origin } });
+      expect(res.status).toBe(200);
+      expect(res.headers.get('access-control-allow-origin')).toBe(origin);
+      await res.text();
+    }
+    const blocked = await fetch(`${BASE}/health`, { headers: { Origin: 'https://not-allowed.example.test' } });
+    expect(blocked.status).toBe(403);
+    await blocked.text();
   });
 
   it('rejects a socket connection carrying an invalid token', async () => {

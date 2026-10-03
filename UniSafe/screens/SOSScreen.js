@@ -74,6 +74,7 @@ export default function SOSScreen({ navigation }) {
         <ActivityIndicator size="large" color={colors.sos} style={{ marginBottom: 20 }} />
         <Text style={[s.title, { color: colors.textPrimary }]}>Sending SOS...</Text>
         <Text style={[s.desc, { color: colors.textMuted }]}>{locationStatus}</Text>
+        <Text style={[s.desc, { color: colors.textMuted }]}>The server may take 30-60 seconds to wake up. Keep this screen open while waiting for confirmation.</Text>
       </View>
     );
   }

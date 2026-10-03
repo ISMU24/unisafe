@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  envDir: false, // Tests must never load local .env files.
   test: {
     environment: 'node',
     include: ['tests/**/*.test.js'],
@@ -8,8 +9,7 @@ export default defineConfig({
     testTimeout: 10000,
     hookTimeout: 10000,
     globals: true,
-    // Every test file shares one file-based SQLite database and truncates its
-    // tables in beforeEach, so files must not run concurrently.
+    // Keep the live-server test's fixed port isolated from other test files.
     fileParallelism: false,
     pool: 'forks',
   },

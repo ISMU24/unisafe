@@ -21,11 +21,14 @@ const REFRESH_TOKEN_EXPIRES = expiry('JWT_REFRESH_EXPIRY', 604800, 2592000);
 
 // Refuse to start without signing secrets: an unset secret would otherwise
 // surface much later as an opaque jwt error on the first login attempt.
+// Render generateValue creates 32 random bytes encoded as 44 Base64 characters,
+// which satisfies this minimum; no hex-only or fixed-length format is required.
 if (process.env.NODE_ENV === 'production') {
   for (const name of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET']) {
     const value = process.env[name];
-    if (!value || value.length < 32) {
-      throw new Error(`${name} must be set to at least 32 characters in production.`);
+    if (!value || value.trim().length < 32 || new Set(value).size < 8 ||
+        /change[-_ ]?me|replace[-_ ]?me|your[-_ ]?(?:access|refresh|jwt|secret)|example|for-testing-only/i.test(value)) {
+      throw new Error(`${name} must be a strong, non-placeholder secret of at least 32 characters in production.`);
     }
   }
   if (process.env.JWT_ACCESS_SECRET === process.env.JWT_REFRESH_SECRET) {

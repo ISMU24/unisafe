@@ -6,14 +6,10 @@
 #
 # Deploy: Render dashboard → New → Blueprint → select ISMU24/unisafe
 #
-# Render wires VITE_API_URL → the API's public URL and
-# CLIENT_ORIGINS → the dashboard's public URL automatically
-# via the `fromService` references below, so you never have to
-# copy-paste URLs between services.
-#
-# The only values you must set manually in the Render dashboard after
-# the first deploy are the JWT secrets if you want to override the
-# auto-generated ones.
+# Set VITE_API_URL to the API's public HTTPS origin and CLIENT_ORIGINS to
+# the dashboard's public HTTPS origin in Render. Public URLs are not a
+# supported fromService property. See DEPLOY-WINDOWS.md for the sequence.
+# JWT secrets are generated automatically; optional AI keys are supplied by you.
 
 services:
   - type: web
@@ -22,7 +18,9 @@ services:
     plan: starter
     region: oregon
     rootDir: UniSafe/server
-    buildCommand: npm install && npm run db:init
+    buildCommand: npm install
+    # Optional on paid plans; schema also initializes on the first runtime query.
+    # preDeployCommand: npm run db:init
     startCommand: npm start
     healthCheckPath: /health
     autoDeploy: true
@@ -46,10 +44,7 @@ services:
       - key: JWT_REFRESH_EXPIRY
         value: "604800"
       - key: CLIENT_ORIGINS
-        fromService:
-          name: unisafe-dashboard
-          type: web
-          property: onrender-url
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: VOYAGE_API_KEY
@@ -58,8 +53,6 @@ services:
   - type: web
     name: unisafe-dashboard
     runtime: static
-    plan: starter
-    region: oregon
     rootDir: uniforce-dashboard
     buildCommand: npm install && npm run build
     staticPublishPath: dist
@@ -76,10 +69,7 @@ services:
       - key: NODE_VERSION
         value: "22"
       - key: VITE_API_URL
-        fromService:
-          name: unisafe-api
-          type: web
-          property: onrender-url
+        sync: false
 
 databases:
   - name: unisafe-db

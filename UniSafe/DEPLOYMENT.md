@@ -1,5 +1,9 @@
 # UniSafe - Deployment Guide
 
+For the current Render Blueprint and lecturer APK handoff on Windows, use
+[DEPLOY-WINDOWS.md](../DEPLOY-WINDOWS.md). It supersedes the older provider and
+mobile configuration examples below and uses the repository-root `render.yaml`.
+
 Three deployable pieces:
 
 | Piece | Path | Deploys to |
@@ -86,8 +90,9 @@ eas submit --platform android   # submit to Play Store
 
 1. Push this repository to GitHub.
 2. In Render: **New > Blueprint**, select the repository.
-3. Render reads `UniSafe/server/render.yaml` and creates:
+3. Render reads the repository-root `render.yaml` and creates:
    - `unisafe-api` - a Node web service
+   - `unisafe-dashboard` - a static site
    - `unisafe-db` - a PostgreSQL database, wired into `DATABASE_URL`
 4. Before the first deploy, open the service's **Environment** tab and set:
 

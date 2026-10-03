@@ -7,25 +7,21 @@ import { Platform } from 'react-native';
 // For development, fallback to app.json extra.apiUrl or localhost
 const getApiBaseUrl = () => {
   // Check for environment variable first (set at build time via EAS or .env)
-  const envUrl = Constants?.expoConfig?.extra?.EXPO_PUBLIC_API_URL || 
-                 process.env.EXPO_PUBLIC_API_URL;
-  
-  if (envUrl) {
-    return envUrl.replace(/\/api\/?$/, '').replace(/\/+$/, '');
+  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  const configUrl = Constants?.expoConfig?.extra?.apiUrl?.trim();
+  const platformDefault = Platform.OS === 'android' ? 'http://10.0.2.2:3001' : 'http://localhost:3001';
+  const resolved = (envUrl || configUrl || platformDefault)
+    .replace(/\/+$/, '').replace(/\/api$/, '');
+  try {
+    const url = new URL(resolved);
+    if (!['http:', 'https:'].includes(url.protocol)) return '';
+    // Fail closed without crashing the UI: requests show a configuration error.
+    // Socket.IO uses the same validated base URL.
+    if (!__DEV__ && url.protocol !== 'https:') return '';
+    return resolved;
+  } catch {
+    return '';
   }
-  
-  // Fallback to app.json config.
-  // app.json ships the Android emulator host alias (10.0.2.2), which is NOT
-  // reachable from the web build, a desktop client, or a physical device, so
-  // only honour it on Android and default everything else to localhost.
-  const configUrl = Constants?.expoConfig?.extra?.apiUrl;
-  const isAndroidEmulatorHost = configUrl && configUrl.includes('10.0.2.2');
-  const resolved = (Platform.OS === 'android' || !isAndroidEmulatorHost)
-    ? configUrl
-    : 'http://localhost:3001';
-  
-  return (resolved || (Platform.OS === 'web' ? 'http://localhost:3001' : 'http://10.0.2.2:3001'))
-    .replace(/\/api\/?$/, '').replace(/\/+$/, '');
 };
 
 const REST_BASE = getApiBaseUrl();
@@ -71,6 +67,7 @@ async function refreshSession() {
 }
 
 async function serverRequest(method, endpoint, body, auth = true, retry = true) {
+  if (!REST_BASE) throw new Error('This app has a missing or insecure server address. Contact the app administrator for an updated version.');
   const headers = { 'Content-Type': 'application/json' };
   const version = sessionVersion;
   let usedToken = '';
@@ -79,7 +76,7 @@ async function serverRequest(method, endpoint, body, auth = true, retry = true) 
     if (usedToken) headers.Authorization = `Bearer ${usedToken}`;
   }
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), 75000);
   let res;
   let data;
   try {
@@ -92,8 +89,8 @@ async function serverRequest(method, endpoint, body, auth = true, retry = true) 
     data = await res.json().catch(() => ({}));
   } catch (error) {
     throw new Error(error.name === 'AbortError'
-      ? 'The server did not respond in time. Delivery is not confirmed.'
-      : 'Unable to reach the server. Check your connection.');
+      ? 'The server did not respond in time. It may still be waking up. Delivery is not confirmed; wait a minute and check the status before retrying.'
+      : 'Unable to reach the server. Check your connection. The server may be waking up; wait 30-60 seconds and check the status before retrying.');
   } finally {
     clearTimeout(timeout);
   }
@@ -103,7 +100,9 @@ async function serverRequest(method, endpoint, body, auth = true, retry = true) 
     return serverRequest(method, endpoint, body, auth, false);
   }
   if (!res.ok) {
-    const error = new Error(data.error || `Request failed: ${res.status}`);
+    const error = new Error([502, 503, 504].includes(res.status)
+      ? 'The server is temporarily unavailable or waking up. Wait 30-60 seconds and check the status before retrying. Delivery is not confirmed.'
+      : (data.error || `Request failed: ${res.status}`));
     error.status = res.status;
     throw error;
   }

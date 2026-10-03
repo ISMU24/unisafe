@@ -35,6 +35,7 @@
         "backgroundColor": "#A80808"
       },
       "permissions": [
+        "INTERNET",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
       ]
