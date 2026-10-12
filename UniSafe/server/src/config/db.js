@@ -5,18 +5,43 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import fs from 'fs';
 
 // ── Connection resolution ───────────────────────────────────────────────
-// Postgres is used when DATABASE_URL is set, or when any DB_* part is set.
-// Otherwise the server falls back to a local SQLite file for development.
+// PostgreSQL is primary. SQLite requires explicit development/test opt-in and
+// is never allowed as a fallback after a PostgreSQL configuration/connection error.
 function resolveConnection() {
   const url = process.env.DATABASE_URL?.trim();
-  if (url) return { connectionString: url };
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      if (!['postgres:', 'postgresql:'].includes(parsed.protocol) || !parsed.hostname) throw new Error();
+    } catch {
+      throw new Error('Invalid DATABASE_URL: expected a PostgreSQL connection URL. Credentials are omitted.');
+    }
+    return { connectionString: url };
+  }
 
   const host = process.env.DB_HOST?.trim();
-  if (!host) return null;
+  if (!host) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('PostgreSQL is required in production: configure DATABASE_URL or DB_HOST. SQLite is disabled.');
+    }
+    const parts = ['DB_PORT', 'DB_NAME', 'DB_DATABASE', 'DB_USER', 'DB_USERNAME', 'DB_PASSWORD'];
+    if (parts.some(name => process.env[name]?.trim())) {
+      throw new Error('Incomplete PostgreSQL configuration: DB_* connection settings require DB_HOST or DATABASE_URL.');
+    }
+    if (process.env.ALLOW_SQLITE_FALLBACK !== 'true') {
+      throw new Error('No database configured: set DATABASE_URL or DB_HOST for PostgreSQL. For development/tests only, explicitly set ALLOW_SQLITE_FALLBACK=true.');
+    }
+    return null;
+  }
+
+  const port = Number(process.env.DB_PORT?.trim() || 5432);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('Invalid DB_PORT: expected an integer from 1 to 65535.');
+  }
 
   return {
     host,
-    port: Number(process.env.DB_PORT || 5432),
+    port,
     database: process.env.DB_NAME || process.env.DB_DATABASE || 'postgres',
     user: process.env.DB_USER || process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,

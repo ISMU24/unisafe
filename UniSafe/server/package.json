@@ -25,6 +25,7 @@
   },
   "scripts": {
     "start": "node -r dotenv/config index.js",
+    "start:sqlite": "node scripts/start-sqlite.js",
     "dev": "node --watch -r dotenv/config index.js",
     "db:init": "node -r dotenv/config scripts/init-db.js",
     "db:seed": "node -r dotenv/config scripts/seed-db.js",

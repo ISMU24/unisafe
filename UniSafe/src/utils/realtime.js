@@ -91,6 +91,8 @@ export function connectRealtime() {
     const client = io(REST_BASE, {
       path: '/socket.io',
       auth: { token },
+      // React Native supports extra headers for WebSocket and polling requests.
+      extraHeaders: { 'ngrok-skip-browser-warning': 'true' },
       transports: ['websocket', 'polling'],
       withCredentials: false,
       reconnection: true,

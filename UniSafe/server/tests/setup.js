@@ -1,13 +1,15 @@
 import { beforeAll, afterAll, beforeEach, vi } from 'vitest';
 // Isolate before importing db; never use inherited hosted database configuration.
-process.env.DATABASE_URL = '';
-process.env.DB_HOST = '';
+process.env.NODE_ENV = 'test';
+for (const name of ['DATABASE_URL', 'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_DATABASE', 'DB_USER', 'DB_USERNAME', 'DB_PASSWORD']) {
+  process.env[name] = '';
+}
+process.env.ALLOW_SQLITE_FALLBACK = 'true';
 process.env.SQLITE_PATH = ':memory:';
 process.env.DOTENV_CONFIG_PATH = '__unisafe_test_no_dotenv__';
 const { default: db, initializeDatabase, closePool, isPostgres } = await import('../src/config/db.js');
 
 // Set test environment
-process.env.NODE_ENV = 'test';
 process.env.JWT_ACCESS_SECRET = 'test-access-secret-key-for-testing-only';
 process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-key-for-testing-only';
 process.env.JWT_ACCESS_EXPIRY = '900';

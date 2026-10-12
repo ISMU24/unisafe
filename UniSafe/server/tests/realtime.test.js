@@ -67,21 +67,16 @@ describe('Realtime push (live server subprocess)', () => {
   const sockets = [];
 
   beforeAll(async () => {
-    // Strip all database connection variables from the inherited environment
-    // and pass empty strings for DATABASE_URL and DB_HOST so the subprocess
-    // dotenv/config import does NOT override them (dotenv skips variables that
-    // are already set in process.env, even to an empty string). This forces the
-    // subprocess to use in-memory SQLite rather than
-    // attempting to connect to the Docker Postgres container (which is not
-    // running during unit tests).
+    // Exercise the explicit SQLite development/test entry point with conflicting PostgreSQL settings.
+    // The launcher must ignore both selectors while preserving SQLITE_PATH,
+    // PORT, authentication and CORS. Never load the developer's .env or database.
     const { DATABASE_URL, DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DB_SSL, ...inheritedEnv } = process.env;
-    child = spawn(process.execPath, ['index.js'], {
+    child = spawn(process.execPath, ['scripts/start-sqlite.js'], {
       cwd: SERVER_ROOT,
       env: {
         ...inheritedEnv,
-        // Explicitly set to empty so dotenv/config does not re-inject from .env
-        DATABASE_URL: '',
-        DB_HOST: '',
+        DATABASE_URL: 'postgresql://unused:unused@127.0.0.1:1/unused',
+        DB_HOST: '127.0.0.1',
         PORT: String(PORT),
         NODE_ENV: 'test',
         SQLITE_PATH: ':memory:',

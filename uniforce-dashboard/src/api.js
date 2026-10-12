@@ -92,7 +92,7 @@ export function getMe() { return req('GET', '/api/auth/me'); }
 // The server revokes every refresh token on a password change and returns a
 // fresh pair, so adopt it here or the next access-token refresh would fail.
 export async function changePassword(currentPassword, newPassword) {
-  const data = await send('POST', '/api/auth/change-password', { currentPassword, newPassword });
+  const data = await req('POST', '/api/auth/change-password', { currentPassword, newPassword });
   storeSession(data);
   connectRealtime();
   return data;

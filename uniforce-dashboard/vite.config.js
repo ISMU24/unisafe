@@ -11,6 +11,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
+      host: '0.0.0.0',
+
+      allowedHosts: [
+        'enquirer-giggling-cognition.ngrok-free.dev'
+      ],
       port: 5173,
       proxy: {
         '/api': {

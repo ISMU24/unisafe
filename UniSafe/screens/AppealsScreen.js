@@ -45,11 +45,10 @@ export default function AppealsScreen({ navigation, route }) {
       setAppeals(prev => [saved, ...prev]);
       setTab('my');
       Alert.alert('Submitted', `Your appeal ID is ${saved.id}`);
-    } catch {
-      // Fallback: use local appeal object
-      setAppeals(prev => [appeal, ...prev]);
-      setTab('my');
-      Alert.alert('Submitted', `Your appeal ID is ${appeal.id}`);
+    } catch (error) {
+      // Server-backed submission is authoritative. A local fallback must not look
+      // like a confirmed appeal because the API never acknowledged it.
+      Alert.alert('Appeal not confirmed', `${error?.message || 'Your appeal could not be sent right now.'} Please retry after checking your connection.`);
     }
   }, []);
 
