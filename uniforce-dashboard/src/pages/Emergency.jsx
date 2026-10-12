@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { MapPin } from 'lucide-react'
+import { MapPin, Trash2 } from 'lucide-react'
 import { SectionHeader, StatusPill, LoadingBlock, ErrorBanner } from '../components/UniForceUI.jsx'
-import { subscribeSOSEvents, updateSOSStatus } from '../api.js'
+import { subscribeSOSEvents, updateSOSStatus, recycleRecord } from '../api.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { RESPONDER_ROLES, hasAnyRole } from '../utils/roles.js'
+import { RESPONDER_ROLES, ADMIN_ROLES, hasAnyRole } from '../utils/roles.js'
 import { CATEGORY, red } from '../services/mockData.js'
 
 const ACTIVE_STATUSES = ['Active', 'Acknowledged', 'Responding']
@@ -17,6 +17,7 @@ export default function Emergency() {
   const { user } = useAuth()
 
   const canRespond = hasAnyRole(user?.roles, RESPONDER_ROLES)
+  const isAdmin = hasAnyRole(user?.roles, ADMIN_ROLES)
 
   useEffect(() => {
     const stop = subscribeSOSEvents(
@@ -37,6 +38,18 @@ export default function Emergency() {
       setActionError(err.message)
     } finally {
       setBusyId(null)
+    }
+
+    async function moveToRecycleBin(event) {
+      setBusyId(event.docId); setActionError(null)
+      try {
+        await recycleRecord('sos', event.docId)
+        setEvents(current => current.filter(item => item.docId !== event.docId))
+      } catch (err) {
+        setActionError(err.message)
+      } finally {
+        setBusyId(null)
+      }
     }
   }
 
@@ -113,6 +126,17 @@ export default function Emergency() {
                     >Resolve</button>
                   )}
                 </div>
+              )}
+              {isAdmin && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  disabled={busy}
+                  onClick={() => moveToRecycleBin(e)}
+                  title="Move SOS alert to Recycle Bin"
+                  aria-label="Move SOS alert to Recycle Bin"
+                >
+                  <Trash2 size={14} />
+                </button>
               )}
             </div>
           )

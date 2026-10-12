@@ -20,27 +20,6 @@ export const CATEGORY = {
 // Must match backend incident_status CHECK constraint exactly
 export const STAGES = ["Submitted", "Received", "Under Review", "Assigned", "Responding", "Resolved", "Closed", "Cancelled"];
 
-// Demo incidents, used only by the AI Tools sandbox page. Real dashboards
-// read exclusively from the Express API (see src/api.js).
-export function seedIncidents() {
-  return [
-    { id: "INC-4471", type: "Security", desc: "Suspicious person near Female Dormitories", reporter: "I. Muge (23201047)", status: "Assigned", time: "08:12", loc: "Female Dormitories, Taraka", assignee: "Officer T. Kaupa" },
-    { id: "SOS-7702", type: "Ambulance", desc: "Emergency SOS — student collapsed at Sporting Facilities", reporter: "R. Waigani (23198812)", status: "Acknowledged", time: "08:04", loc: "Sporting Facilities", assignee: "—" },
-    { id: "INC-4468", type: "Other", desc: "Broken perimeter light, Male Dormitories walkway", reporter: "Anonymous", status: "Submitted", time: "07:51", loc: "Male Dormitories", assignee: "—" },
-    { id: "INC-4463", type: "Fire", desc: "Smoke reported in School of Science Lab", reporter: "S. Namaliu (staff)", status: "Resolved", time: "Yesterday", loc: "School of Science", assignee: "Officer P. Are" },
-    { id: "INC-4459", type: "Ambulance", desc: "Student fainted at Sporting Facilities", reporter: "K. Tolo (23205511)", status: "Resolved", time: "Mon", loc: "Sporting Facilities", assignee: "Officer M. Sogeri" },
-    { id: "INC-4451", type: "Security", desc: "Unauthorised vehicle near Administration Block", reporter: "Anonymous", status: "Resolved", time: "Mon", loc: "Administration Block", assignee: "Officer T. Kaupa" },
-  ];
-}
-
-export const PERSONNEL = [
-  { name: "Officer N. Pomio", role: "Field Responder", status: "On duty", cases: 2 },
-  { name: "Officer W. Raka", role: "Field Responder", status: "On duty", cases: 1 },
-  { name: "Officer N. Norihiko", role: "Field Responder", status: "On call", cases: 0 },
-  { name: "Officer G. Tawe", role: "Field Responder", status: "Off duty", cases: 0 },
-  { name: "Sgt. J. Tewi", role: "Shift Supervisor", status: "On duty", cases: 4 },
-];
-
 // PNGUoT Taraka Campus — East Taraka, Lae, Morobe Province, PNG
 // Campus centre ≈ 6°40'12"S 146°59'42"E (per Wikipedia / Wikimapia).
 // Buildings below are real Unitech facilities (from the official site, Campus

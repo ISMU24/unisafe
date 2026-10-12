@@ -354,6 +354,13 @@ CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);
 CREATE INDEX idx_refresh_tokens_expires ON refresh_tokens(expires_at) 
     WHERE revoked = FALSE;
 
+-- Recycle Bin soft-delete markers. ADD COLUMN IF NOT EXISTS also upgrades
+-- existing PostgreSQL databases without replacing any stored records.
+ALTER TABLE sos_events ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE safety_alerts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE assistance_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE appeals ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
 -- ============================================================
 -- TRIGGERS FOR updated_at
 -- ============================================================

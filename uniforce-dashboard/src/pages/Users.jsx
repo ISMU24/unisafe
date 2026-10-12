@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Search } from 'lucide-react'
+import { Search, Trash2 } from 'lucide-react'
 import { SectionHeader, TableHeader, DutyPill, LoadingBlock, ErrorBanner } from '../components/UniForceUI.jsx'
-import { subscribePersonnel, subscribeUsers, getUsers } from '../api.js'
+import { subscribePersonnel, subscribeUsers, getUsers, recycleRecord } from '../api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { ADMIN_ROLES, hasAnyRole } from '../utils/roles.js'
 import { teal, red } from '../services/mockData.js'
@@ -12,6 +12,7 @@ export default function Users() {
   const [search,    setSearch]    = useState('')
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
   const { user } = useAuth()
 
   // GET /api/users is ADMIN/ICT_ADMIN only on the server, so only subscribe
@@ -37,6 +38,19 @@ export default function Users() {
     u.name?.toLowerCase().includes(search.toLowerCase()) ||
     u.id?.toLowerCase().includes(search.toLowerCase())
   )
+
+  async function moveUserToRecycleBin(user) {
+    setDeletingId(user.id)
+    setError(null)
+    try {
+      await recycleRecord('user', user.id)
+      setUsers(current => current.filter(row => row.id !== user.id))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   return (
     <div style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
@@ -80,12 +94,12 @@ export default function Users() {
             />
           </div>
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-            <TableHeader cols={['Name', 'ID', 'Role', 'Campus', 'Status']} widths="1.5fr 1fr 1fr 1fr 1fr" />
+            <TableHeader cols={['Name', 'ID', 'Role', 'Campus', 'Status', '']} widths="1.5fr 1fr 1fr 1fr 1fr 40px" />
             {!filteredUsers.length && (
               <div style={{ padding: 24, textAlign: 'center', fontSize: 12.5, color: 'var(--text-muted)' }}>No users match that search.</div>
             )}
             {filteredUsers.map(u => (
-              <div key={u.docId} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', alignItems: 'center', padding: '12px 14px', borderTop: '1px solid var(--border)' }}>
+              <div key={u.docId} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr 40px', alignItems: 'center', padding: '12px 14px', borderTop: '1px solid var(--border)' }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{u.name}</span>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{u.student_or_staff_id || u.id}</span>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{u.role}</span>
@@ -96,6 +110,15 @@ export default function Users() {
                   background: u.is_active ? '#E4F2EC' : '#FBEAE7',
                   padding: '3px 9px', borderRadius: 20, width: 'fit-content',
                 }}>{u.is_active ? 'Active' : 'Inactive'}</span>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  disabled={deletingId === u.id || u.id === user?.id}
+                  onClick={() => moveUserToRecycleBin(u)}
+                  title={u.id === user?.id ? 'You cannot delete your own account' : 'Move account to Recycle Bin'}
+                  aria-label={`Move ${u.name} to Recycle Bin`}
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
             ))}
           </div>

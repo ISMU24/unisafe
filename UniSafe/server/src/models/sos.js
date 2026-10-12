@@ -42,7 +42,7 @@ export async function getSosEventById(id) {
     LEFT JOIN users u ON u.id = s.reporter_id
     LEFT JOIN users a ON a.id = s.acknowledged_by
     LEFT JOIN users r ON r.id = s.responder_id
-    WHERE s.id = ?
+    WHERE s.id = ? AND s.deleted_at IS NULL
   `).get(id);
   return result || null;
 }
@@ -50,7 +50,7 @@ export async function getSosEventById(id) {
 export async function listSosEvents(filters = {}) {
   const { status, limit = 50, offset = 0 } = filters;
   
-  const conditions = [];
+  const conditions = ['s.deleted_at IS NULL'];
   const params = [];
 
   if (status) {
@@ -126,7 +126,7 @@ export async function getSosStatusHistory(id) {
 }
 
 export async function getActiveSosCount() {
-  const result = await db.prepare(`SELECT COUNT(*) as count FROM sos_events WHERE status IN ('Active', 'Acknowledged', 'Responding')`).get();
+  const result = await db.prepare(`SELECT COUNT(*) as count FROM sos_events WHERE deleted_at IS NULL AND status IN ('Active', 'Acknowledged', 'Responding')`).get();
   return result.count;
 }
 

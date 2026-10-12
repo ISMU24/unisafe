@@ -31,6 +31,7 @@ export function connectRealtime() {
       path: '/socket.io',
       auth: { token },
       transports: ['websocket', 'polling'],
+      extraHeaders: { 'ngrok-skip-browser-warning': 'true' },
       withCredentials: false,
       reconnection: true,
       reconnectionDelay: 1000,

@@ -79,7 +79,7 @@ export async function getAlertById(id) {
     SELECT a.*, u.full_name as sent_by_name
     FROM safety_alerts a
     LEFT JOIN users u ON u.id = a.sent_by
-    WHERE a.id = ?
+    WHERE a.id = ? AND a.deleted_at IS NULL
   `).get(id);
 
   return presentAlert(result);
@@ -88,7 +88,7 @@ export async function getAlertById(id) {
 export async function listAlerts(filters = {}) {
   const { is_active, severity, limit = 50, offset = 0 } = filters;
   
-  const conditions = [];
+  const conditions = ['a.deleted_at IS NULL'];
   const params = [];
 
   if (is_active !== undefined) {
@@ -146,13 +146,13 @@ export async function updateAlert(id, data) {
   updates.push(`updated_at = ?`);
   params.push(now(), id);
 
-  await db.prepare(`UPDATE safety_alerts SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+  await db.prepare(`UPDATE safety_alerts SET ${updates.join(', ')} WHERE id = ? AND deleted_at IS NULL`).run(...params);
 
   return getAlertById(id);
 }
 
 export async function deleteAlert(id) {
-  const result = await db.prepare(`DELETE FROM safety_alerts WHERE id = ?`).run(id);
+  const result = await db.prepare(`UPDATE safety_alerts SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL`).run(now(), id);
   return result.changes > 0;
 }
 
@@ -171,7 +171,7 @@ export async function getAlertsForUser(userId, userRoles) {
     FROM safety_alerts a
     LEFT JOIN users u ON u.id = a.sent_by
     LEFT JOIN alert_deliveries ad ON ad.alert_id = a.id AND ad.user_id = ?
-    WHERE a.is_active = 1
+    WHERE a.deleted_at IS NULL AND a.is_active = 1
       AND (a.expires_at IS NULL OR a.expires_at > ?)
     ORDER BY a.sent_at DESC
   `).all(userId, now());

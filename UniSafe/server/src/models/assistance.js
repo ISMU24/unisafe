@@ -39,7 +39,7 @@ export async function getAssistanceRequestById(id) {
     FROM assistance_requests ar
     LEFT JOIN users u ON u.id = ar.requester_id
     LEFT JOIN users a ON a.id = ar.assignee_id
-    WHERE ar.id = ?
+    WHERE ar.id = ? AND ar.deleted_at IS NULL
   `).get(id);
   return result || null;
 }
@@ -47,7 +47,7 @@ export async function getAssistanceRequestById(id) {
 export async function listAssistanceRequests(filters = {}) {
   const { status, type, assignee_id, requester_id, limit = 50, offset = 0 } = filters;
   
-  const conditions = [];
+  const conditions = ['ar.deleted_at IS NULL'];
   const params = [];
 
   if (status) {
@@ -112,7 +112,7 @@ export async function updateAssistanceRequest(id, data, changedBy) {
   }
 
   params.push(id);
-  await db.prepare(`UPDATE assistance_requests SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+  await db.prepare(`UPDATE assistance_requests SET ${updates.join(', ')} WHERE id = ? AND deleted_at IS NULL`).run(...params);
 
   return getAssistanceRequestById(id);
 }

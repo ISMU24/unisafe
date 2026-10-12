@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { ChevronRight, MapPin, Clock, Check } from 'lucide-react'
+import { ChevronRight, MapPin, Clock, Check, Trash2 } from 'lucide-react'
 import { SectionHeader, StatusPill, CatBadge, TableHeader, DetailRow, LoadingBlock, ErrorBanner } from '../components/UniForceUI.jsx'
-import { subscribeIncidents, subscribePersonnel, getIncidents, updateIncidentStatus, assignIncident } from '../api.js'
+import { API_BASE, subscribeIncidents, subscribePersonnel, getIncidents, getIncident, updateIncidentStatus, assignIncident, recycleRecord } from '../api.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { RESPONDER_ROLES, hasAnyRole } from '../utils/roles.js'
+import { RESPONDER_ROLES, ADMIN_ROLES, hasAnyRole } from '../utils/roles.js'
 import { STAGES, teal } from '../services/mockData.js'
 
 export default function Incidents() {
@@ -18,8 +18,13 @@ export default function Incidents() {
   const [error,      setError]      = useState(null)
   const [actionError,setActionError]= useState(null)
   const [busy,       setBusy]       = useState(false)
+  const [selectedDetail, setSelectedDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState(null)
+  const [detailRetry, setDetailRetry] = useState(0)
 
   const canManage = hasAnyRole(user?.roles, RESPONDER_ROLES)
+  const isAdmin = hasAnyRole(user?.roles, ADMIN_ROLES)
 
   // Live updates arrive over Socket.IO; polling is only the fallback.
   useEffect(() => {
@@ -42,6 +47,26 @@ export default function Incidents() {
     }
   }, [incidents, selectedId])
 
+  useEffect(() => {
+    if (!selectedId) {
+      setSelectedDetail(null)
+      setDetailError(null)
+      setDetailLoading(false)
+      return
+    }
+
+    let active = true
+    setSelectedDetail(null)
+    setDetailError(null)
+    setDetailLoading(true)
+    getIncident(selectedId)
+      .then(incident => { if (active) setSelectedDetail(incident) })
+      .catch(err => { if (active) setDetailError(err.message) })
+      .finally(() => { if (active) setDetailLoading(false) })
+
+    return () => { active = false }
+  }, [selectedId, detailRetry])
+
   const reload = useCallback(async () => {
     setLoading(true)
     try { setIncidents(await getIncidents()); setError(null) }
@@ -62,17 +87,28 @@ export default function Incidents() {
   const handleAssign = (docId, assigneeId) =>
     runAction(async () => { await assignIncident(docId, assigneeId); await reload() })
 
+  const handleRecycle = (docId) => runAction(async () => {
+    await recycleRecord('incident', docId)
+    setSelectedId(null)
+    await reload()
+  })
+
   const selected = incidents.find(i => i.docId === selectedId)
 
   if (selected) {
     return (
       <IncidentDetail
-        inc={selected}
+        inc={selectedDetail?.docId === selectedId ? selectedDetail : selected}
         personnel={personnel}
         canManage={canManage}
         busy={busy}
         actionError={actionError}
+        isAdmin={isAdmin}
+        detailLoading={detailLoading}
+        detailError={detailError}
+        onRetryDetail={() => setDetailRetry(retry => retry + 1)}
         onBack={() => setSelectedId(null)}
+        onRecycle={handleRecycle}
         onStatus={handleStatusChange}
         onAssign={handleAssign}
       />
@@ -85,6 +121,7 @@ export default function Incidents() {
     <div style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
       <SectionHeader title="View incidents" sub="All reported incidents and SOS alerts" />
       {error && <ErrorBanner message={error} onRetry={reload} />}
+      {actionError && <ErrorBanner message={actionError} />}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {['All', 'Security', 'Fire', 'Ambulance', 'Other'].map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
@@ -124,14 +161,19 @@ export default function Incidents() {
   )
 }
 
-function IncidentDetail({ inc, personnel, canManage, busy, actionError, onBack, onStatus, onAssign }) {
+function IncidentDetail({ inc, personnel, canManage, isAdmin, busy, actionError, detailLoading, detailError, onRetryDetail, onBack, onRecycle, onStatus, onAssign }) {
   const idx = STAGES.indexOf(inc.status)
+  const media = Array.isArray(inc.media) ? inc.media : []
+  const attachments = media
+    .map(file => ({ file, href: attachmentUrl(file.file_url) }))
+    .filter(item => item.href)
   return (
     <div style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
       <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 12.5, cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 4 }}>
         <ChevronRight size={14} style={{ transform: 'rotate(180deg)' }} /> Back to incidents
       </button>
       {actionError && <ErrorBanner message={actionError} />}
+      {detailError && <ErrorBanner message={`Could not load incident attachments: ${detailError}`} onRetry={onRetryDetail} />}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -140,7 +182,19 @@ function IncidentDetail({ inc, personnel, canManage, busy, actionError, onBack, 
           </div>
           <div style={{ fontSize: 19, fontWeight: 800, color: 'var(--text)', marginTop: 4 }}>{inc.desc}</div>
         </div>
-        <StatusPill status={inc.status} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <StatusPill status={inc.status} />
+          {isAdmin && (
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={busy}
+              onClick={() => onRecycle(inc.docId)}
+              title="Move incident to Recycle Bin"
+            >
+              <Trash2 size={14} /> Delete
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 }}>
@@ -188,6 +242,45 @@ function IncidentDetail({ inc, personnel, canManage, busy, actionError, onBack, 
             <DetailRow label="Anonymous" value={inc.anonymous ? 'Yes' : 'No'} last />
           </div>
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>Attachments</div>
+            {detailLoading ? (
+              <LoadingBlock label="Loading attachments…" />
+            ) : attachments.length ? (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {attachments.map(({ file, href }, index) => {
+                  const isImage = typeof file.mime_type === 'string' && file.mime_type.startsWith('image/')
+                  const filename = attachmentName(href) || `Attachment ${index + 1}`
+                  return (
+                    <div key={file.id || href} style={{ minWidth: 0 }}>
+                      {isImage && (
+                        <a href={href} target="_blank" rel="noreferrer" aria-label={`Open ${filename}`}>
+                          <img
+                            src={href}
+                            alt={filename}
+                            loading="lazy"
+                            style={{ display: 'block', maxWidth: '100%', maxHeight: 240, objectFit: 'contain', borderRadius: 8, marginBottom: 8 }}
+                          />
+                        </a>
+                      )}
+                      <a href={href} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: 12.5, overflowWrap: 'anywhere' }}>
+                        {filename}
+                      </a>
+                      {file.file_size != null && (
+                        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 3 }}>{formatFileSize(file.file_size)}</div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : detailError ? (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Attachments could not be loaded.</div>
+            ) : media.length ? (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>The saved attachment links are invalid.</div>
+            ) : (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>No attachments on this incident.</div>
+            )}
+          </div>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
             <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>Assign responder</div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
               Currently: <strong style={{ color: 'var(--text)' }}>{inc.assignee}</strong>
@@ -218,4 +311,31 @@ function IncidentDetail({ inc, personnel, canManage, busy, actionError, onBack, 
       </div>
     </div>
   )
+}
+
+function attachmentUrl(fileUrl) {
+  if (typeof fileUrl !== 'string' || !fileUrl.trim()) return null
+  try {
+    const url = new URL(fileUrl, API_BASE || window.location.origin)
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : null
+  } catch {
+    return null
+  }
+}
+
+function attachmentName(href) {
+  try {
+    const segment = new URL(href).pathname.split('/').filter(Boolean).at(-1)
+    return segment ? decodeURIComponent(segment) : null
+  } catch {
+    return null
+  }
+}
+
+function formatFileSize(bytes) {
+  const size = Number(bytes)
+  if (!Number.isFinite(size) || size < 0) return null
+  if (size < 1024) return `${size} B`
+  if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / 1024 ** 2).toFixed(1)} MB`
 }

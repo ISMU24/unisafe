@@ -146,7 +146,8 @@ db.exec(`
     cancelled_at        TEXT,
     cancellation_reason TEXT,
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    deleted_at          TEXT
   );
 
   CREATE TABLE IF NOT EXISTS sos_status_history (
@@ -180,7 +181,8 @@ db.exec(`
     expires_at      TEXT,
     is_active       INTEGER NOT NULL DEFAULT 1,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    deleted_at      TEXT
   );
 
   CREATE TABLE IF NOT EXISTS alert_deliveries (
@@ -213,7 +215,8 @@ db.exec(`
     assignee_id         TEXT REFERENCES users(id) ON DELETE SET NULL,
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT NOT NULL DEFAULT (datetime('now')),
-    completed_at        TEXT
+    completed_at        TEXT,
+    deleted_at          TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_assistance_requester ON assistance_requests(requester_id);
@@ -236,7 +239,8 @@ db.exec(`
     decision                TEXT,
     decided_at              TEXT,
     created_at              TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    deleted_at          TEXT
   );
 
   CREATE TABLE IF NOT EXISTS appeal_documents (
@@ -371,6 +375,13 @@ db.exec(`
     UPDATE policies SET updated_at = datetime('now') WHERE id = NEW.id;
   END;
 `);
+
+for (const table of ['sos_events', 'safety_alerts', 'assistance_requests', 'appeals']) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some(column => column.name === 'deleted_at')) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN deleted_at TEXT`);
+  }
+}
 
 return db;
 }
