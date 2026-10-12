@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Shield, Mail, Lock, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Mail, Lock, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { ink, line, textSub, teal, red } from '../services/mockData.js'
+import campusImage from '../../assets/pnguot0014-1024x683.jpg'
+import shieldLogo from '../../../UniSafe/assets/uot-logo-shield.png'
 
 const paper = '#F4F5F2'
 
@@ -33,12 +35,20 @@ export default function Login() {
   }
 
   return (
-    <div style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif', minHeight: '100vh', display: 'flex', background: paper }}>
+    <div style={{
+      fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+      minHeight: '100vh',
+      display: 'flex',
+      backgroundColor: paper,
+      backgroundImage: `url("${campusImage}")`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    }}>
       {/* Left panel */}
-      <div style={{ flex: 1, background: ink, color: '#fff', padding: '60px 56px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <div style={{ flex: 1, background: 'linear-gradient(90deg, rgba(12, 26, 42, 0.82), rgba(12, 26, 42, 0.58))', color: '#fff', padding: '60px 56px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
           <div style={{ width: 46, height: 46, borderRadius: 10, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Shield size={26} color={ink} />
+            <img src={shieldLogo} alt="PNG University of Technology shield logo" style={{ width: 42, height: 42, objectFit: 'contain' }} />
           </div>
           <div>
             <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 0.5 }}>UNI-FORCE PORTAL</div>
@@ -51,7 +61,7 @@ export default function Login() {
       </div>
 
       {/* Right panel */}
-      <div style={{ width: 400, background: '#fff', padding: '60px 44px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <div style={{ width: 400, background: 'rgba(255, 255, 255, 0.96)', backdropFilter: 'blur(8px)', padding: '60px 44px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <div style={{ fontSize: 18, fontWeight: 800, color: ink, marginBottom: 4 }}>Staff / officer login</div>
         <div style={{ fontSize: 12, color: textSub, marginBottom: 26 }}>Authorised personnel only</div>
 
