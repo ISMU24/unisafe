@@ -11,8 +11,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Build dependencies for better-sqlite3, which falls back to a local database
-# file when no PostgreSQL connection is configured.
+# Build the retained better-sqlite3 dependency for explicit development/tests.
+# Production requires PostgreSQL and never falls back to SQLite.
 RUN apk add --no-cache python3 make g++ sqlite-libs
 
 COPY server/package*.json ./
@@ -33,6 +33,6 @@ USER nodejs
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+    CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/health').then(async r=>{const h=await r.json();process.exit(r.ok&&h.status==='ok'&&h.db?.engine==='postgresql'&&h.db?.connected===true?0:1)}).catch(()=>process.exit(1))"
 
 CMD ["node", "index.js"]

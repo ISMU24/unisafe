@@ -17,6 +17,7 @@ import appealsRoutes from './src/routes/appeals.js';
 import usersRoutes from './src/routes/users.js';
 import dashboardRoutes from './src/routes/dashboard.js';
 import auditRoutes from './src/routes/audit.js';
+import recycleBinRoutes from './src/routes/recycle-bin.js';
 import { seedInitialAdmin } from './src/auth/database.js';
 import db, { checkConnection, isPostgres } from './src/config/db.js';
 
@@ -61,7 +62,7 @@ function readOrigins() {
 const ALLOWED_ORIGINS = readOrigins();
 
 const CORS_METHODS = ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'];
-const CORS_HEADERS = ['Content-Type', 'Authorization', 'Accept'];
+const CORS_HEADERS = ['Content-Type', 'Authorization', 'Accept', 'ngrok-skip-browser-warning'];
 
 function originAllowed(origin) {
   if (!origin) return true;
@@ -178,6 +179,7 @@ app.use('/api/appeals', appealsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/audit-logs', auditRoutes);
+app.use('/api/recycle-bin', recycleBinRoutes);
 
 // ── Global error handler.
 // Without this Express returns its default HTML page (with a stack trace in

@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { subscribeAlerts, markAlertRead } from '../api.js'
+import { Trash2 } from 'lucide-react'
+import { subscribeAlerts, markAlertRead, recycleRecord } from '../api.js'
+import { useAuth } from '../context/AuthContext.jsx'
+import { ADMIN_ROLES, hasAnyRole } from '../utils/roles.js'
 
 /**
  * Alert notifications for the signed-in responder.
@@ -29,6 +32,8 @@ export default function NotificationBell() {
   const [alerts, setAlerts] = useState([])
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
+  const isAdmin = hasAnyRole(user?.roles, ADMIN_ROLES)
 
   useEffect(() => {
     setLoading(true);
@@ -62,6 +67,16 @@ export default function NotificationBell() {
     } catch {
       setError(new Error('Some alerts could not be marked as read.'))
     }
+
+    const moveToRecycleBin = async (alert) => {
+      try {
+        await recycleRecord('alert', alert.id)
+        setAlerts(current => current.filter(item => item.id !== alert.id))
+        setError(null)
+      } catch (err) {
+        setError(err)
+      }
+    }
   }
 
   return (
@@ -84,15 +99,26 @@ export default function NotificationBell() {
           )}
 
           {ordered.map((alert) => (
-            <div key={alert.id} className={`notif-item${alert.is_read ? '' : ' unread'}`}>
-              <div className="notif-item-title">
-                {alert.severity && alert.severity !== 'Info' ? `[${alert.severity}] ` : ''}
-                {alert.title}
+            <div key={alert.id} className={`notif-item${alert.is_read ? '' : ' unread'}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="notif-item-title">
+                  {alert.severity && alert.severity !== 'Info' ? `[${alert.severity}] ` : ''}
+                  {alert.title}
+                </div>
+                <div className="notif-item-time">
+                  {relativeTime(alert.sent_at || alert.created_at)}
+                  {alert.sent_by_name ? ` · ${alert.sent_by_name}` : ''}
+                </div>
               </div>
-              <div className="notif-item-time">
-                {relativeTime(alert.sent_at || alert.created_at)}
-                {alert.sent_by_name ? ` · ${alert.sent_by_name}` : ''}
-              </div>
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => moveToRecycleBin(alert)}
+                  aria-label={`Move alert "${alert.title}" to Recycle Bin`}
+                  title="Move to Recycle Bin"
+                ><Trash2 size={13} /></button>
+              )}
             </div>
           ))}
         </div>

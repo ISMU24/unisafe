@@ -13,6 +13,7 @@ import Profile from './pages/Profile.jsx'
 import Settings from './pages/Settings.jsx'
 import AITools from './pages/AITools.jsx'
 import AuditLogs from './pages/AuditLogs.jsx'
+import RecycleBin from './pages/RecycleBin.jsx'
 import { LoadingBlock } from './components/UniForceUI.jsx'
 import { RESPONDER_ROLES } from './utils/roles.js'
 
@@ -53,6 +54,7 @@ function AppRoutes() {
         <Route path="settings" element={<Settings />} />
         <Route path="ai-tools" element={<AITools />} />
         <Route path="audit-logs" element={<RoleRoute allow={['ADMIN', 'ICT_ADMIN']}><AuditLogs /></RoleRoute>} />
+        <Route path="recycle-bin" element={<RoleRoute allow={['ADMIN', 'ICT_ADMIN']}><RecycleBin /></RoleRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

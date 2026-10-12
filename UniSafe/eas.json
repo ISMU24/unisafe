@@ -28,7 +28,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://unisafe-api.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://enquirer-giggling-cognition.ngrok-free.dev"
       }
     }
   },

@@ -19,7 +19,7 @@ npm-debug.log*
 *.db-wal
 *.db-shm
 server/data/
-
+  
 # EAS
 .eas/
 
@@ -31,3 +31,6 @@ server/data/
 Thumbs.db
 .vscode/
 *.tsbuildinfo
+
+# Local Netlify folder
+.netlify

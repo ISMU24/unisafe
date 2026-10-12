@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Shield, LayoutGrid, FileWarning, Radio, Users, BarChart3, UserCog, LogOut, Sparkles, ClipboardList } from "lucide-react";
+import { Shield, LayoutGrid, FileWarning, Radio, Users, BarChart3, UserCog, LogOut, Sparkles, ClipboardList, Trash2 } from "lucide-react";
 import { ink } from "../services/mockData.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { RESPONDER_ROLES, ADMIN_ROLES, roleLabel } from "../utils/roles.js";
@@ -12,6 +12,7 @@ const navItems = [
   { to: "/users", icon: UserCog, label: "User management" },
   { to: "/ai-tools", icon: Sparkles, label: "AI Tools" },
   { to: "/audit-logs", icon: ClipboardList, label: "Audit Logs", allow: ADMIN_ROLES },
+  { to: "/recycle-bin", icon: Trash2, label: "Recycle Bin", allow: ADMIN_ROLES },
 ];
 
 // "Officer T. Kaupa" -> "TK"; "Steven Namaliu" -> "SN"

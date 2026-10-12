@@ -38,7 +38,7 @@ export async function getAppealById(id) {
     LEFT JOIN users u ON u.id = a.appellant_id
     LEFT JOIN users r ON r.id = a.reviewer_id
     LEFT JOIN incidents i ON i.id = a.related_incident_id
-    WHERE a.id = ?
+    WHERE a.id = ? AND a.deleted_at IS NULL
   `).get(id);
   return result || null;
 }
@@ -46,7 +46,7 @@ export async function getAppealById(id) {
 export async function listAppeals(filters = {}) {
   const { status, type, appellant_id, reviewer_id, limit = 50, offset = 0 } = filters;
   
-  const conditions = [];
+  const conditions = ['a.deleted_at IS NULL'];
   const params = [];
 
   if (status) {
@@ -109,7 +109,7 @@ export async function updateAppealStatus(id, status, reviewerId, decision = '') 
   }
 
   params.push(id);
-  await db.prepare(`UPDATE appeals SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+  await db.prepare(`UPDATE appeals SET ${updates.join(', ')} WHERE id = ? AND deleted_at IS NULL`).run(...params);
 
   return getAppealById(id);
 }

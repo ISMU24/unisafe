@@ -19,6 +19,7 @@ database and no client-side data store — it is REST + Socket.IO only.
 - `src/utils/roles.js` — role → route/nav visibility mapping.
 - `src/pages/` — Dashboard, Incidents, Emergency, Alerts via NotificationBell,
   Analytics, Reports, Users, AI Tools, Profile, Settings, Login.
+- `src/pages/RecycleBin.jsx` — administrator-only restore/permanent-delete UI.
 - `src/components/` — Navbar, Sidebar, NotificationBell, DashboardCard,
   StatisticsCard, UniForceUI.
 
@@ -132,10 +133,14 @@ and the incidents table renders `desc`.
 
 ## Known gaps
 
-- `src/pages/AITools.jsx` renders fabricated data. The real RAG endpoint is
-  `POST /api/policy-search` and returns 503 unless `ANTHROPIC_API_KEY` and
-  `VOYAGE_API_KEY` are configured. Wire it up rather than inventing output.
+- `src/pages/AITools.jsx` uses the real `POST /api/policy-search` endpoint.
+  Policy Q&A returns 503 unless `ANTHROPIC_API_KEY` and `VOYAGE_API_KEY` are
+  configured; do not replace that error with fabricated output.
 - `src/pages/Settings.jsx` is inert — it renders but persists nothing.
+- Operational records and user accounts are soft-deleted into the Recycle Bin
+  through `/api/recycle-bin`; do not bypass it with physical deletes. Permanent
+  account erasure also removes records owned by that account and cannot remove
+  the last active administrator.
 - The server authenticates students, so a student can sign in here and land on
   pages that answer "Insufficient permissions." The dashboard is a staff tool;
   consider refusing non-responder roles at login.

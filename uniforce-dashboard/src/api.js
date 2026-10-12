@@ -37,7 +37,7 @@ async function send(method, endpoint, body, token) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const headers = { Accept: 'application/json' };
+    const headers = { Accept: 'application/json', 'ngrok-skip-browser-warning': 'true' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     if (token) headers.Authorization = `Bearer ${token}`;
     const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -92,7 +92,7 @@ export function getMe() { return req('GET', '/api/auth/me'); }
 // The server revokes every refresh token on a password change and returns a
 // fresh pair, so adopt it here or the next access-token refresh would fail.
 export async function changePassword(currentPassword, newPassword) {
-  const data = await send('POST', '/api/auth/change-password', { currentPassword, newPassword });
+  const data = await req('POST', '/api/auth/change-password', { currentPassword, newPassword });
   storeSession(data);
   connectRealtime();
   return data;
@@ -251,5 +251,11 @@ export async function getAuditLogs(filters = {}) { return list(await req('GET', 
 // Public health probe. Used by the dashboard banner to tell the operator
 // whether the backend is reachable at all.
 export function getHealth() { return send('GET', '/api/health', undefined, null); }
+export function searchPolicies(question) { return req('POST', '/api/policy-search', { question }); }
+export async function getRecycleBin() { return list(await req('GET', '/api/recycle-bin'), 'items'); }
+export async function getRecycleRecords() { return list(await req('GET', '/api/recycle-bin/records'), 'records'); }
+export function recycleRecord(type, id) { return req('DELETE', `/api/recycle-bin/${encodeURIComponent(type)}/${encodeURIComponent(id)}`); }
+export function restoreRecord(type, id) { return req('POST', `/api/recycle-bin/${encodeURIComponent(type)}/${encodeURIComponent(id)}/restore`); }
+export function permanentlyDeleteRecord(type, id) { return req('DELETE', `/api/recycle-bin/${encodeURIComponent(type)}/${encodeURIComponent(id)}/permanent`); }
 
 export { onRealtimeStatus, connectRealtime };

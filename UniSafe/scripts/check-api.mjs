@@ -13,11 +13,16 @@ const { code } = transformSync(source, {
   plugins: [require.resolve('@babel/plugin-transform-modules-commonjs')],
 });
 
-function load({ envUrl, configUrl, legacyUrl, platform = 'android', dev = false, fetchImpl } = {}) {
+function load({ envUrl, configUrl, legacyUrl, platform = 'android', dev = false, fetchImpl, stored = {} } = {}) {
   const calls = [];
   const deadlines = [];
   const exports = {};
-  const storage = { getItem: async () => '', multiRemove: async () => {}, multiSet: async () => {} };
+  const values = new Map(Object.entries(stored));
+  const storage = {
+    getItem: async key => values.get(key) || '',
+    multiRemove: async keys => keys.forEach(key => values.delete(key)),
+    multiSet: async entries => entries.forEach(([key, value]) => values.set(key, value)),
+  };
   const dependencies = {
     'expo-constants': { expoConfig: { extra: { apiUrl: configUrl, EXPO_PUBLIC_API_URL: legacyUrl } } },
     '@react-native-async-storage/async-storage': storage,
@@ -35,12 +40,77 @@ function load({ envUrl, configUrl, legacyUrl, platform = 'android', dev = false,
   return { ...exports, calls, deadlines };
 }
 
-test('URL priority, normalization and development platform defaults', () => {
+test('URL priority, normalization and explicit development configuration', () => {
   assert.equal(load({ envUrl: ' https://env.example/api/ ', configUrl: 'https://config.example', legacyUrl: 'https://legacy.example' }).REST_BASE, 'https://env.example');
   assert.equal(load({ configUrl: 'https://config.example/api' }).REST_BASE, 'https://config.example');
-  assert.equal(load({ dev: true }).REST_BASE, 'http://10.0.2.2:3001');
-  assert.equal(load({ dev: true, platform: 'ios' }).REST_BASE, 'http://localhost:3001');
-  assert.equal(load({ dev: true, platform: 'web' }).REST_BASE, 'http://localhost:3001');
+  for (const platform of ['android', 'ios', 'web']) {
+    assert.equal(load({ dev: true, platform }).REST_BASE, '');
+  }
+});
+
+test('ngrok header preserves JSON, authorization, refresh and retry timeout', async () => {
+  const client = load({
+    envUrl: 'https://api.example',
+    stored: { token: 'old-access', refreshToken: 'stored-refresh' },
+    fetchImpl: async (url, options) => {
+      if (url.endsWith('/api/auth/refresh')) {
+        assert.equal(JSON.parse(options.body).refreshToken, 'stored-refresh');
+        assert.equal(options.headers.Authorization, undefined);
+        return { ok: true, status: 200, json: async () => ({ accessToken: 'new-access', refreshToken: 'new-refresh' }) };
+      }
+      const ok = options.headers.Authorization === 'Bearer new-access';
+      return { ok, status: ok ? 200 : 401, json: async () => ({ id: 'user-id' }) };
+    },
+  });
+  await client.api.me();
+  assert.deepEqual(client.calls.map(([url]) => new URL(url).pathname), ['/api/auth/me', '/api/auth/refresh', '/api/auth/me']);
+  assert.equal(client.calls[0][1].headers.Authorization, 'Bearer old-access');
+  assert.equal(client.calls[2][1].headers.Authorization, 'Bearer new-access');
+  for (const [, options] of client.calls) {
+    assert.equal(options.headers['Content-Type'], 'application/json');
+    assert.equal(options.headers['ngrok-skip-browser-warning'], 'true');
+  }
+  assert.ok(client.deadlines.every(ms => ms === 75000));
+});
+
+test('realtime passes the header and token while retaining subscriptions and cleanup', async () => {
+  const exports = {};
+  const handlers = new Map();
+  let captured;
+  let disconnected = false;
+  const socket = {
+    on: (event, handler) => handlers.set(event, handler),
+    removeAllListeners: () => handlers.clear(),
+    disconnect: () => { disconnected = true; },
+  };
+  const dependencies = {
+    'socket.io-client': { io: (url, options) => { captured = { url, options }; return socket; } },
+    'react-native': { AppState: {} },
+    '@react-native-async-storage/async-storage': { getItem: async () => 'access-token' },
+    './api.js': { REST_BASE: 'https://api.example' },
+  };
+  const realtime = transformSync(fs.readFileSync(new URL('../src/utils/realtime.js', import.meta.url), 'utf8'), {
+    filename: 'realtime.js', configFile: false, babelrc: false,
+    plugins: [require.resolve('@babel/plugin-transform-modules-commonjs')],
+  });
+  vm.runInNewContext(realtime.code, { exports, require: name => dependencies[name] });
+  let delivered = 0;
+  const unsubscribe = exports.subscribeRealtime('incident-update', () => { delivered += 1; });
+  await exports.connectRealtime();
+  assert.equal(captured.url, 'https://api.example');
+  assert.equal(captured.options.path, '/socket.io');
+  assert.equal(captured.options.auth.token, 'access-token');
+  assert.equal(captured.options.extraHeaders['ngrok-skip-browser-warning'], 'true');
+  assert.deepEqual(Array.from(captured.options.transports), ['websocket', 'polling']);
+  handlers.get('connect')();
+  handlers.get('incident-update')({});
+  assert.equal(delivered, 1);
+  unsubscribe();
+  handlers.get('incident-update')({});
+  assert.equal(delivered, 1);
+  exports.disconnectRealtime();
+  assert.equal(disconnected, true);
+  assert.equal(handlers.size, 0);
 });
 
 test('release refuses HTTP, missing or invalid configuration before any network request', async () => {

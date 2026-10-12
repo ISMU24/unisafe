@@ -1,16 +1,13 @@
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 
-// Get API base URL from environment or app.json config
-// For production builds, use the environment variable EXPO_PUBLIC_API_URL
-// For development, fallback to app.json extra.apiUrl or localhost
+// Require an explicit API URL from the build environment or app configuration.
+// Missing configuration must not silently target a local machine or emulator.
 const getApiBaseUrl = () => {
   // Check for environment variable first (set at build time via EAS or .env)
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
   const configUrl = Constants?.expoConfig?.extra?.apiUrl?.trim();
-  const platformDefault = Platform.OS === 'android' ? 'http://10.0.2.2:3001' : 'http://localhost:3001';
-  const resolved = (envUrl || configUrl || platformDefault)
+  const resolved = (envUrl || configUrl || '')
     .replace(/\/+$/, '').replace(/\/api$/, '');
   try {
     const url = new URL(resolved);
@@ -68,7 +65,10 @@ async function refreshSession() {
 
 async function serverRequest(method, endpoint, body, auth = true, retry = true) {
   if (!REST_BASE) throw new Error('This app has a missing or insecure server address. Contact the app administrator for an updated version.');
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = {
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
+  };
   const version = sessionVersion;
   let usedToken = '';
   if (auth) {

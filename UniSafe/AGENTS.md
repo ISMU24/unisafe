@@ -11,7 +11,7 @@ and no Firebase.
 | Piece | Path | Stack |
 |---|---|---|
 | Mobile app | `UniSafe` | Expo SDK 57, React Native 0.86, Hermes |
-| API | `UniSafe/server` | Express, Socket.IO, ESM, PostgreSQL (SQLite fallback) |
+| API | `UniSafe/server` | Express, Socket.IO, ESM, PostgreSQL (explicit SQLite development/tests only) |
 | Dashboard | `uniforce-dashboard` | React 19, Vite |
 
 ```
@@ -115,7 +115,8 @@ focus, so a blocked WebSocket makes the app slower, never wrong.
 | Variable | Where | Notes |
 |---|---|---|
 | `EXPO_PUBLIC_API_URL` | `UniSafe/.env` | **Inlined into the JS bundle at build time and readable by anyone who unzips the APK.** Never put a secret here. |
-| `DATABASE_URL` | `server/.env` | Omit and the server uses a local SQLite file that loses data on redeploy. |
+| `DATABASE_URL` | `server/.env` | Primary PostgreSQL selector; DB_HOST is the alternative. Required for production/demo; missing configuration fails startup. |
+| `ALLOW_SQLITE_FALLBACK` | `server/.env` | Explicit `true` permits development/test SQLite only when PostgreSQL connection settings are absent. Production refuses SQLite; PostgreSQL failures never switch engines. |
 | `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | `server/.env` | 32+ chars, must differ. Production refuses to boot otherwise. |
 | `CLIENT_ORIGINS` | `server/.env` | Comma-separated dashboard origins. |
 | `ANTHROPIC_API_KEY` / `VOYAGE_API_KEY` | `server/.env` | Optional. Absent ⇒ policy Q&A returns 503, nothing else breaks. |

@@ -1,5 +1,81 @@
 # UniSafe - Deployment Guide
 
+## Database architecture
+
+Mobile app and web dashboard -> Express backend -> PostgreSQL.
+PostgreSQL is the primary database and is mandatory for production and demos.
+Development uses PostgreSQL by default; missing configuration fails startup.
+SQLite is reserved for automated in-memory tests and explicitly enabled local development.
+
+Selection order:
+
+1. A nonempty `DATABASE_URL` selects PostgreSQL.
+2. Otherwise, `DB_HOST` selects PostgreSQL with the individual `DB_*` settings.
+3. Production without either selector fails, even if SQLite opt-in is enabled.
+4. Outside production, SQLite requires `ALLOW_SQLITE_FALLBACK=true` and no PostgreSQL connection settings.
+
+Malformed or incomplete PostgreSQL configuration fails clearly. PostgreSQL startup
+or connection failures never switch the application to SQLite. Run npm commands
+from `UniSafe/server`, or use the repository-root convenience scripts, so dotenv
+loads the intended server configuration. Do not print or commit connection credentials.
+
+## Local PostgreSQL demo with an HTTPS tunnel
+
+Use the existing PostgreSQL service and server configuration. For Cloudflare
+installation, the Windows tunnel launcher, public health checks and troubleshooting,
+see [LOCAL-TUNNEL-DEMO.md](../LOCAL-TUNNEL-DEMO.md).
+
+```powershell
+Set-Location 'C:\Users\israe\Desktop\Project\UniSafe\server'
+npm start
+```
+
+Normal startup applies the existing schema and conditional initial-admin bootstrap.
+Do not run reset commands or change account credentials to prepare a demo.
+Both Express and Socket.IO use `PORT` (default `3001`). The dashboard may retain
+`VITE_API_URL=http://localhost:3001`; keep its browser origin in `CLIENT_ORIGINS`.
+
+Verify both endpoints before starting the tunnel or reusing an existing listener:
+
+```powershell
+$ApiBase = 'http://localhost:3001'
+foreach ($Endpoint in @('/health', '/api/health')) {
+    $Health = Invoke-RestMethod -Uri "$ApiBase$Endpoint" -TimeoutSec 10 -ErrorAction Stop
+    if ($Health.status -ne 'ok' -or $Health.db.connected -ne $true -or $Health.db.engine -ne 'postgresql') {
+        throw "Demo requires connected PostgreSQL at $Endpoint"
+    }
+    Write-Output "PASS $Endpoint : PostgreSQL connected"
+}
+```
+
+Expected: HTTP 200, `status: "ok"`, and
+`db: { engine: "postgresql", connected: true }`. Database-check failures return
+HTTP 503. Optional AI/index warnings do not by themselves prevent startup.
+Forward the entire API origin, including Socket.IO. Set the mobile build's
+`EXPO_PUBLIC_API_URL` to the tunnel HTTPS origin when separately rebuilding it.
+
+## Explicit SQLite development and automated tests
+
+For local development only, run `npm run start:sqlite` from `UniSafe/server`.
+This launcher refuses `NODE_ENV=production`, explicitly opts into SQLite, and
+clears PostgreSQL connection settings only in its own process. It preserves
+`SQLITE_PATH` and other application settings; it does not edit the server `.env`.
+The default file is `server/data/unisafe.db`. Preserve existing database/WAL/SHM
+files unless their disposal is separately approved.
+
+Alternatively, set `ALLOW_SQLITE_FALLBACK=true` with PostgreSQL connection settings
+unset. This setting is an opt-in for an unconfigured local environment, never
+failover from a broken PostgreSQL connection. Generic health endpoints truthfully
+report `db.engine: "sqlite"` in this mode; demo tooling rejects that engine.
+
+`npm test` explicitly selects SQLite `:memory:` before importing the database
+adapter and disables local dotenv loading. Keep `better-sqlite3` and
+`sqlite-schema.js` for these tests. Normal init/seed commands use their own
+selected environment; they do not inherit a separate SQLite launcher's overrides.
+Do not use them to prepare a SQLite process while the normal configuration targets PostgreSQL.
+
+## Hosted deployment (separate from the local demo)
+
 For the current Render Blueprint and lecturer APK handoff on Windows, use
 [DEPLOY-WINDOWS.md](../DEPLOY-WINDOWS.md). It supersedes the older provider and
 mobile configuration examples below and uses the repository-root `render.yaml`.
@@ -149,7 +225,7 @@ Required environment variables:
 
 | Variable | Notes |
 |---|---|
-| `DATABASE_URL` **or** `DB_HOST`/`DB_PORT`/`DB_NAME`/`DB_USER`/`DB_PASSWORD` | Omit all of them and the server falls back to a local SQLite file, which loses data on redeploy. |
+| `DATABASE_URL` **or** `DB_HOST`/`DB_PORT`/`DB_NAME`/`DB_USER`/`DB_PASSWORD` | Required for production/demo. Missing selectors fail startup; development SQLite requires explicit opt-in. |
 | `JWT_ACCESS_SECRET` | 32+ characters. |
 | `JWT_REFRESH_SECRET` | 32+ characters, different from the access secret. |
 | `CLIENT_ORIGINS` | Comma-separated dashboard origins. |

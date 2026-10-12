@@ -4,7 +4,7 @@
  * Works on both engines:
  *  - PostgreSQL (DATABASE_URL or DB_HOST set): applies src/config/schema.sql,
  *    statement by statement, in one transaction. Safe to re-run.
- *  - SQLite (no Postgres variables): creates the local development file via the
+ *  - SQLite (explicit non-production opt-in, no Postgres variables): creates the local development file via the
  *    same module the server uses, so the schema can never drift from runtime.
  *
  * Usage: npm run db:init
@@ -17,7 +17,7 @@ async function main() {
     console.log('Initializing PostgreSQL schema...');
     await runPostgreSQLSchema();
   } else {
-    console.log('No DATABASE_URL or DB_HOST found - initializing local SQLite database...');
+    console.log('Explicit SQLite development/test mode - initializing SQLite database...');
     await initializeDatabase();
     console.log('SQLite schema initialized.');
   }
