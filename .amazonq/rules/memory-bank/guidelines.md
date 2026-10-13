@@ -1,6 +1,6 @@
  # UniSafe - Development Guidelines
 
-Reviewed against local source on 2026-10-12 (Pacific/Port_Moresby).
+Reviewed against local source on 2026-10-13 (Pacific/Port_Moresby).
 Use alongside the other memory-bank documents and applicable AGENTS.md instructions.
 Distinguish intended rules from existing implementation gaps.
 Use progress.md for the dated completion record and outstanding checks.
@@ -62,8 +62,11 @@ Use progress.md for the dated completion record and outstanding checks.
 - Mobile requests allow 75 seconds for cold starts; dashboard requests allow 15.
 - Preserve single-flight refresh and session-version checks. A 401 can cause one
   authenticated retry; transport failures must not automatically replay writes.
-- Incident/SOS/assistance success requires a returned ID. Preserve the form and
-  unconfirmed-delivery guidance after failure. Do not invent a response time.
+- Incident/SOS/assistance success requires a returned ID. Incident submission
+  uses the multipart report endpoint for optional JPEG/PNG images (up to three,
+  2 MB each); preserve server validation, authorization, and transaction behavior.
+  Preserve the form and unconfirmed-delivery guidance after failure. Do not
+  invent a response time.
 - Preserve POLICY_UNAVAILABLE feedback; missing AI configuration is not a cold
   start problem. Policy browsing remains available without AI credentials.
 - API origins are public build-time settings; release mobile calls require HTTPS.
@@ -72,8 +75,8 @@ Use progress.md for the dated completion record and outstanding checks.
   no automatic localhost/emulator fallback, even in development. Explicit HTTP
   configuration is development-only; missing configuration fails before fetch.
 - Preserve ngrok-skip-browser-warning: true on mobile JSON requests, refresh,
-  retries, and Socket.IO extraHeaders. Native checks do not establish Expo web
-  compatibility: the API's CORS_HEADERS currently omits that custom header.
+  retries, and Socket.IO extraHeaders. API CORS currently allows this header;
+  native checks alone do not establish deployed Expo web preflight behavior.
 
 ## Realtime contracts
 
@@ -94,11 +97,12 @@ Do not use connectRealtime().on(...) directly.
   Emit after the related database operation succeeds/commits.
 - Rooms include user:<uuid>, role:<ROLE>, and responders. Domain emitters notify
   responders plus the owner; targeted alerts use emitAlertToUsers.
-- Shared responder incident payloads currently lack REST category filtering and
-  anonymous redaction. Review socket permissions independently from REST.
-- The legacy join-room handler blocks user:* and unauthorized responders joins,
-  but does not validate arbitrary role:* room names against the user's roles.
-  Do not extend sensitive room-based delivery without reviewing this behavior.
+- Incident updates are sent to category-specific role rooms and use the
+  anonymous presentation helper; SOS and other responder events use the shared
+  responders room. Still review socket authorization independently from REST.
+- The legacy join-room handler blocks user:* joins and non-responder access to
+  the responders room, but still permits arbitrary role:* room names. Resolve
+  this before treating role rooms as a secure authorization boundary.
 - API target_roles contains role names; internal target_role_ids are numeric.
 
 ## Refresh and feed behavior
@@ -125,10 +129,12 @@ push separately from eventual refetch recovery.
   StyleSheet conventions; some existing files still contain hardcoded styles.
 - Dashboard uses CSS variables, UniForceUI helpers, and utils/roles.js.
   Align route/sidebar visibility with uppercase API roles.
-- services/mockData.js includes campus map/palette metadata and sample operational
-  data used by AI Tools. Never use sample records in live feeds.
-- AI Tools is a prototype, Settings does not persist, photos are preview-only,
-  and mobile profile edits are local. See product.md for gaps.
+- services/mockData.js includes campus map/palette metadata and shared display
+  constants. Keep it out of operational data feeds.
+- Dashboard AI Tools now calls the policy Q&A API; it is not live incident
+  analytics. Settings does not persist, and mobile profile edits are local.
+  Dashboard profile identity edits are administrator-managed; password changes
+  use the authenticated API. See product.md for remaining gaps.
 - Dashboard changePassword uses the authenticated request helper, including its
   token refresh/retry behavior, and adopts the returned session. Do not describe
   the full browser flow as verified until an authenticated end-to-end check passes.

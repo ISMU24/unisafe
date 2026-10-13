@@ -171,6 +171,30 @@ describe('Realtime push (live server subprocess)', () => {
     await blocked.text();
   });
 
+  it('permits dashboard auth preflight headers and rejects unlisted origins', async () => {
+    for (const endpoint of ['/api/auth/login', '/api/auth/refresh', '/api/auth/logout', '/api/auth/me']) {
+      const res = await fetch(`${BASE}${endpoint}`, {
+        method: 'OPTIONS',
+        headers: {
+          Origin: 'https://dashboard.example.test',
+          'Access-Control-Request-Method': endpoint.endsWith('/me') ? 'GET' : 'POST',
+          'Access-Control-Request-Headers': 'content-type,authorization,ngrok-skip-browser-warning',
+        },
+      });
+      expect(res.status).toBe(204);
+      expect(res.headers.get('access-control-allow-origin')).toBe('https://dashboard.example.test');
+      expect(res.headers.get('access-control-allow-methods')).toContain('POST');
+      const headers = res.headers.get('access-control-allow-headers').toLowerCase();
+      for (const header of ['content-type', 'authorization', 'ngrok-skip-browser-warning']) expect(headers).toContain(header);
+    }
+    const blocked = await fetch(`${BASE}/api/auth/login`, {
+      method: 'OPTIONS', headers: { Origin: 'https://not-allowed.example.test', 'Access-Control-Request-Method': 'POST' },
+    });
+    expect(blocked.status).toBe(403);
+    expect(blocked.headers.get('access-control-allow-origin')).toBeNull();
+    await blocked.text();
+  });
+
   it('rejects a socket connection carrying an invalid token', async () => {
     await expect(connect(`bad-${crypto.randomUUID()}`)).rejects.toThrow();
   });

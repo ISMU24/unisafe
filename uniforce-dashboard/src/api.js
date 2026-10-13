@@ -1,8 +1,14 @@
 // REST is authoritative. Errors must never be replaced with sample data.
 import { connectRealtime, disconnectRealtime, onRealtimeStatus, subscribeRealtime } from './realtime.js';
+import { resolveApiBase } from './api-config.js';
 
-export const API_BASE = (import.meta.env?.VITE_API_URL ?? (import.meta.env?.DEV ? 'http://localhost:3001' : ''))
-  .replace(/\/api\/?$/, '').replace(/\/+$/, '');
+let apiBase = '';
+let configError = '';
+try {
+  apiBase = resolveApiBase(import.meta.env?.VITE_API_URL, { production: !import.meta.env?.DEV });
+} catch (error) { configError = error.message; }
+export const API_BASE = apiBase;
+export const API_CONFIG_ERROR = configError;
 let accessToken;
 let refreshToken;
 let refreshFlight = null;
@@ -34,6 +40,7 @@ export class ApiError extends Error {
   constructor(message, status = 0) { super(message); this.name = 'ApiError'; this.status = status; }
 }
 async function send(method, endpoint, body, token, responseType = 'json') {
+  if (API_CONFIG_ERROR) throw new ApiError(API_CONFIG_ERROR);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
@@ -43,16 +50,27 @@ async function send(method, endpoint, body, token, responseType = 'json') {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       method, headers, signal: controller.signal, body: body === undefined ? undefined : JSON.stringify(body),
     });
+    const isJson = response.headers.get('content-type')?.includes('application/json');
     const data = response.ok && responseType === 'blob'
       ? await response.blob()
       : await response.json().catch(() => ({}));
-    if (!response.ok) throw new ApiError(data.error || `Request failed (${response.status}).`, response.status);
+    if (!response.ok) {
+      const fallback = response.status === 404
+        ? `API endpoint not found (404): ${method} ${API_BASE}${endpoint}. Check VITE_API_URL and the backend deployment.`
+        : response.status === 401 ? 'Authentication failed (401). Please sign in again.'
+        : response.status === 403 ? 'Access denied (403). Check your account permissions.'
+        : `Request failed (${response.status}).`;
+      throw new ApiError(data.error || fallback, response.status);
+    }
+    if (responseType === 'json' && !isJson) {
+      throw new ApiError('Expected JSON from the API but received a non-API response. Check VITE_API_URL and the host SPA fallback.', response.status);
+    }
     return data;
   } catch (error) {
     if (error instanceof ApiError) throw error;
     throw new ApiError(error.name === 'AbortError'
       ? 'The server did not respond in time. Please retry.'
-      : 'Unable to reach the server. Check your connection and retry.');
+      : 'Unable to reach the API. Check your connection, backend availability and CLIENT_ORIGINS (CORS).');
   } finally { clearTimeout(timeout); }
 }
 export async function refreshAccessToken(token = getRefreshToken()) {

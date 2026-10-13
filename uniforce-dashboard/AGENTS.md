@@ -9,8 +9,9 @@ database and no client-side data store — it is REST + Socket.IO only.
 ## Key files
 
 - `src/api.js` — the only HTTP client. Exports `API_BASE`, resolved from
-  `VITE_API_URL` (build time), falling back to `''` in production so the app
-  calls its own origin, and `http://localhost:3001` in dev.
+  `VITE_API_URL` (build time). Production requires a public HTTPS origin;
+  missing/invalid values fail the build and are guarded at runtime. Empty in
+  development uses Vite's proxy. Explicit `/` selects the included nginx proxy.
 - `src/realtime.js` — authenticated Socket.IO connection shared app-wide.
 - `src/context/AuthContext.jsx` — login, token storage, refresh, role.
 - `src/context/ThemeContext.jsx` — dark/light.
@@ -34,10 +35,10 @@ container or in the browser does nothing.
 - Do **not** append `/api` — `api.js` adds the path itself.
 - `uniforce-dashboard/.env` exists locally and points at `localhost:3001`.
   Vite lets a host-set environment variable win over `.env`, so CI builds are
-  fine, but a `dist/` built on a dev machine is wired to localhost.
-- In `docker-compose.yml` the dashboard is built **without** `VITE_API_URL`, so
-  it calls its own origin and nginx proxies `/api/` and `/socket.io/` to the
-  `server` service.
+  fine; production builds now reject this localhost value.
+- In `docker-compose.yml` the Dockerfile defaults `VITE_API_URL` to `/`, so
+  nginx proxies `/api/` and `/socket.io/` to the `server` service. Netlify
+  rejects this setting: use a verified HTTPS backend origin there.
 
 ## CORS
 
@@ -144,8 +145,8 @@ and the incidents table renders `desc`.
 - The server authenticates students, so a student can sign in here and land on
   pages that answer "Insufficient permissions." The dashboard is a staff tool;
   consider refusing non-responder roles at login.
-- There is no `vite.config.*`, so `npm run dev` has no API proxy and relies on
-  `VITE_API_URL` plus the API's CORS allowlist.
+- `vite.config.js` proxies `/api` and `/socket.io` during development. An
+  explicit `VITE_API_URL` instead makes the browser call that origin directly.
 
 ## Role scoping
 

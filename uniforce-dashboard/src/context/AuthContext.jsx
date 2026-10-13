@@ -1,11 +1,13 @@
 import { createContext, useContext, useState, useMemo, useEffect } from 'react'
-import { login as apiLogin, logout as apiLogout, getMe, setToken, getToken } from '../api.js'
+import { login as apiLogin, logout as apiLogout, getMe, getToken, onSessionEnded } from '../api.js'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => onSessionEnded(() => setUser(null)), [])
 
   // On mount, restore session from stored token
   useEffect(() => {
@@ -16,7 +18,8 @@ export function AuthProvider({ children }) {
         const me = await getMe()
         setUser(buildUser(me))
       } catch {
-        setToken(null)
+        // The API client clears rejected sessions. Preserve stored tokens on
+        // configuration, network and routing failures so a retry can recover.
       } finally {
         setLoading(false)
       }
@@ -36,8 +39,7 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
-    await apiLogout()
-    setUser(null)
+    try { await apiLogout() } finally { setUser(null) }
   }
 
   const value = useMemo(() => ({ user, loading, login, logout }), [user, loading])

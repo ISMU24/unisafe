@@ -1,5 +1,5 @@
 import { io } from 'socket.io-client';
-import { API_BASE, getToken } from './api.js';
+import { API_BASE, API_CONFIG_ERROR, getToken } from './api.js';
 
 let socket = null;
 let connecting = null;
@@ -20,6 +20,7 @@ export function getSocket() {
 }
 
 export function connectRealtime() {
+  if (API_CONFIG_ERROR) { notify('error', new Error(API_CONFIG_ERROR)); return null; }
   if (socket) return socket;
   if (connecting) return connecting;
 

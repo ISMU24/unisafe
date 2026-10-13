@@ -1,6 +1,6 @@
 # UniSafe - Product Overview
 
-Reviewed against local source on 2026-10-12 (Pacific/Port_Moresby).
+Reviewed against local source on 2026-10-13 (Pacific/Port_Moresby).
 This describes repository behavior, not a verified live deployment.
 See [progress.md](progress.md) for completed work, current verification, and handoff.
 
@@ -14,14 +14,19 @@ serves campus users; the UniForce web dashboard serves responders and administra
 
 | Application | Implemented capabilities |
 |---|---|
-| Mobile (UniSafe/) | JWT login, incident reporting/history, SOS submission/status, targeted alerts, assistance, appeals UI, emergency contacts, policy browsing/search, optional policy Q&A, light/dark theme |
-| API (UniSafe/server/) | Authentication and refresh rotation; incidents, SOS, alerts, assistance, appeals, users, dashboard statistics, audit logs, health checks, policy PDFs and optional RAG |
-| Dashboard (uniforce-dashboard/) | Incident feed/map, SOS management, analytics, report export, user administration, targeted notification bell, admin audit viewer, profile/settings UI |
+| Mobile (UniSafe/) | JWT login, detailed incident reporting/history with up to three image attachments, SOS submission/status, targeted alerts, assistance, appeals UI, emergency contacts, policy browsing/search, optional policy Q&A, light/dark theme |
+| API (UniSafe/server/) | Authentication and refresh rotation; incidents and image media, SOS, alerts, assistance, appeals, users, dashboard statistics, audit logs, admin recycle bin, health checks, policy PDFs and optional RAG |
+| Dashboard (uniforce-dashboard/) | Incident feed/map and detail, incident status/assignment, SOS management, analytics, report export, user administration, targeted notification bell, admin audit viewer, policy Q&A, recycle bin, profile/settings UI |
 
 Mobile AskPolicyAI calls POST /api/policy-search. The policy index and Anthropic
 and Voyage credentials are required. Missing configuration returns HTTP 503 with
 POLICY_UNAVAILABLE; policy browsing and other API functions remain available.
 Local incident triage and duplicate detection use heuristics, not server AI decisions.
+Incident reports can include up to three JPEG/PNG images, each at most 2 MB.
+The API validates file type/content, stores media in the database, and applies
+incident visibility rules when media is fetched. Incident categories have
+structured type choices in the mobile client; the server stores the selected
+incident_type alongside the category.
 
 ## Users and access
 
@@ -56,10 +61,12 @@ Non-responder users can currently sign into the dashboard and encounter restrict
 
 ## Known implementation gaps
 
-- Incident photos are preview-only; they are not uploaded. Review/success messages
-  disclose this.
-- Dashboard AITools.jsx uses sample incidents/personnel, static hotspots, and local
-  text rules. It does not call policy Q&A or provide live AI analysis.
+- The API supports incident image uploads, but this path has only local
+  regression coverage; verify image upload and authorized retrieval in a real
+  deployed environment before relying on it operationally.
+- The dashboard AI Tools page now sends questions to the policy Q&A API and
+  displays returned answers/citations or an error; it does not provide predictive
+  incident, staffing, hotspot, or anomaly analysis.
 - Dashboard Settings changes component state only. Its SMS, notification, and
   auto-assignment controls do not establish working backend features.
 - Failed appeal submissions remain unconfirmed: the app shows an error and keeps
@@ -68,15 +75,15 @@ Non-responder users can currently sign into the dashboard and encounter restrict
 - Dashboard profile identity edits do not persist. Password changes now use the
   authenticated request path and adopt the returned session; a full authenticated
   browser end-to-end check remains outstanding.
-- Incident socket events go to a shared responder room without the REST category
-  filters or anonymous presentation helper. Do not claim equivalent REST/socket privacy.
-- The legacy socket join-room handler permits arbitrary role:* room names;
-  role-room membership is not fully protected by the initial handshake.
+- Incident realtime events are emitted to category-specific role rooms and pass
+  through anonymous presentation. However, the legacy socket join-room handler
+  still permits arbitrary role:* room joins after authentication; room membership
+  is therefore not a complete authorization boundary until that handler is fixed.
 - Policy-generation scripts use Assets while runtime files use assets. Resolve
   this casing mismatch before regenerating on Linux.
-- Mobile adds an ngrok header to every REST request, while server CORS does not
-  allow that header. Cross-origin Expo web requests need a compatibility check/fix;
-  the native transport tests do not cover browser preflight.
+- Cross-origin Expo web preflight and authenticated browser behavior have not
+  been verified end to end, even though the API CORS allowlist includes the
+  mobile ngrok warning header.
 
 ## Demo and delivery state
 
@@ -85,8 +92,9 @@ Non-responder users can currently sign into the dashboard and encounter restrict
 - An explicit SQLite launcher preserves the existing local database/settings while
   ignoring PostgreSQL selectors for its own process. The Cloudflare tunnel helper
   requires healthy SQLite before exposing the API origin, including Socket.IO.
-- Preview and production EAS profiles target Render; production-apk currently
-  targets ngrok. The Cloudflare helper does not update those profiles or the APK.
+- Preview and production EAS profiles target the Render API; production-apk
+  currently targets a temporary ngrok origin. The Cloudflare helper does not
+  update those profiles or an already-built APK.
 - Mobile requires an explicit API URL in both development and release. Release
   requires HTTPS; changing a bundled origin requires another build.
 - EAS project linkage and local debug/release APK files exist. Their presence

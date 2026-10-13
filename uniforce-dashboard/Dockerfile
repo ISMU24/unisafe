@@ -4,7 +4,7 @@
 # the API origin must be passed as a build argument, not a runtime environment
 # variable:
 #
-#   docker build --build-arg VITE_API_URL=https://unisafe-api.onrender.com .
+#   docker build --build-arg VITE_API_URL=https://YOUR_VERIFIED_API_HOST .
 #
 # Leave VITE_API_URL unset to serve the API from the same origin instead (the
 # included nginx.conf proxies /api/ and /socket.io/ to a backend named "server",
@@ -18,7 +18,7 @@ RUN npm ci
 
 COPY . .
 
-ARG VITE_API_URL
+ARG VITE_API_URL=/
 ENV VITE_API_URL=${VITE_API_URL}
 RUN npm run build
 

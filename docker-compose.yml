@@ -58,8 +58,8 @@ services:
       context: ./uniforce-dashboard
       dockerfile: Dockerfile
     container_name: unisafe-dashboard
-    # VITE_API_URL is intentionally unset so the built app calls its own origin
-    # and nginx proxies to the "server" service.
+    # The Dockerfile defaults VITE_API_URL to / so the built app calls its own
+    # origin and nginx proxies to the "server" service.
     ports:
       - "5173:80"
     depends_on:

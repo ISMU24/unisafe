@@ -253,7 +253,7 @@ Build command `npm run build`, output directory `dist`.
 Set one build-time environment variable:
 
 ```
-VITE_API_URL = https://unisafe-api.onrender.com
+VITE_API_URL = https://YOUR_VERIFIED_API_HOST
 ```
 
 Two things to know:
@@ -264,12 +264,12 @@ Two things to know:
   nothing.
 
 Vite loads `uniforce-dashboard/.env` when building. That file exists locally and
-sets `VITE_API_URL=http://localhost:3001`, so **a `dist/` built on this machine
-is wired to localhost and will not work when uploaded to a host.** Build on the
+sets `VITE_API_URL=http://localhost:3001`, so **a production build now rejects
+that development-only value.** Build on the
 host, or set `VITE_API_URL` in your shell before building:
 
 ```powershell
-$env:VITE_API_URL = "https://unisafe-api.onrender.com"
+$env:VITE_API_URL = (Read-Host 'Verified backend HTTPS origin').Trim().TrimEnd('/')
 npm run build
 ```
 
@@ -279,13 +279,18 @@ up. A host-set `VITE_API_URL` always wins over `.env`, because Vite does not let
 
 The dashboard connects to the API cross-origin, including the Socket.IO
 connection, so the API must list the dashboard's origin in `CLIENT_ORIGINS`.
-There is no reverse proxy in front of the dashboard, and `vercel.json` /
-`netlify.toml` deliberately contain no `/socket.io` rule - an earlier version
-pointed at a placeholder host that would have broken the deploy.
+Netlify does not proxy the API. Its `/api/*` and `/socket.io/*` rules return an
+explicit 404 diagnostic before the SPA fallback. Use Netlify base directory
+`uniforce-dashboard`, command `npm run build`, publish directory `dist`, and
+set `VITE_API_URL` in the build environment before redeploying. See
+[the Netlify login repair guide](../NETLIFY-LOGIN-FIX.md) for verification and
+PowerShell deployment commands. A service name in render.yaml is not proof
+that a public backend has been deployed.
 
 The only Docker/nginx deployment mode that proxies `/api` and `/socket.io` is
-`docker-compose.yml`, which builds the dashboard without `VITE_API_URL` so it
-calls its own origin.
+`docker-compose.yml`, whose Dockerfile defaults `VITE_API_URL` to `/` to
+explicitly select the included proxy. Missing production configuration no
+longer silently selects the dashboard origin.
 
 ---
 

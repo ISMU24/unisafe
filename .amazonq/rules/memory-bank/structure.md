@@ -1,6 +1,6 @@
 # UniSafe - Project Structure
 
-Reviewed against local source on 2026-10-12 (Pacific/Port_Moresby).
+Reviewed against local source on 2026-10-13 (Pacific/Port_Moresby).
 Paths below are relative to the project root unless explicitly scoped.
 
 ## Repository layout
@@ -11,10 +11,10 @@ Project/
 |-- UniSafe/                   # Expo mobile/web client
 |   |-- App.js                 # Stack navigation and realtime lifecycle
 |   |-- index.js               # Expo entry point
-|   |-- screens/               # 14 screens, including Assistance.js and SOSStatusScreen.js
+|   |-- screens/               # App screens, including incident, SOS, appeals, assistance
 |   |-- src/
 |   |   |-- components/        # Appeals, policy browsing/search/AI, category badges
-|   |   |-- data/              # Real policy catalog plus legacy mock/user fixtures
+|   |   |-- data/              # Policy catalog, incident taxonomy, display fixtures
 |   |   |-- utils/             # api, realtime, records, aiTriage, duplicateDetector
 |   |   |-- theme.js
 |   |   +-- ThemeContext.js
@@ -32,8 +32,8 @@ Project/
 |       |-- src/
 |       |   |-- auth/          # routes, middleware, tokens, database, passwords, incident-access
 |       |   |-- config/        # db.js, schema.sql, sqlite-schema.js, rate-limits.js
-|       |   |-- models/        # incidents, sos, alerts, assistance, appeals, users, audit
-|       |   |-- routes/        # Same domains plus dashboard; auth is under auth/
+|       |   |-- models/        # incidents, sos, alerts, assistance, appeals, users, audit, recycle-bin
+|       |   |-- routes/        # Same domains plus dashboard/recycle-bin; auth is under auth/
 |       |   +-- realtime.js    # Authentication, rooms, event emitters
 |       |-- scripts/          # init-db, seed-db, reset-reports, e2e-verify, check-audit,
 |       |                     # start-sqlite (process-local database selection)
@@ -51,8 +51,8 @@ Project/
 |   |   |-- layouts/Dashboardlayout.jsx
 |   |   |-- components/        # Navigation, notification bell, cards, shared UI
 |   |   |-- pages/             # Dashboard, Incidents, Emergency, Analytics, Reports,
-|   |   |                      # Users, AITools, AuditLogs, Profile, Settings, Login
-|   |   |-- services/mockData.js # Map/palette plus legacy AI Tools fixtures
+|   |   |                      # Users, AITools, AuditLogs, RecycleBin, Profile, Settings, Login
+|   |   |-- services/mockData.js # Map/palette metadata and shared display constants
 |   |   |-- utils/roles.js
 |   |   +-- style.css
 |   |-- scripts/               # browser-check, route-check, live-check, realtime-check
@@ -99,9 +99,14 @@ Express PDF routes ------------------> UniSafe/assets/Policies/
   connection error never triggers an engine switch.
 - /health, /api/health, /api/policy-search, and /api/policies/:folder/:filename
   are declared in server/index.js, not separate health or RAG router files.
+- POST /api/incidents/report accepts multipart report data and bounded JPEG/PNG
+  attachments; GET /api/incidents/:id/media/:mediaId applies incident visibility.
+- /api/recycle-bin is an ADMIN/ICT_ADMIN API for listing, recycling, restoring,
+  and permanently deleting records across supported domains.
 - Audit logs have a router/model, dashboard /audit-logs page, and
   server/scripts/check-audit.mjs for a PostgreSQL API round trip.
-- UniSafe/src/data/policyCatalog.js is real metadata; mock.js and users.js are fixtures.
+- UniSafe/src/data/policyCatalog.js and incidentTypes.js provide policy metadata
+  and incident type choices; mock.js and users.js are display fixtures.
 - server/scripts/start-sqlite.js imports dotenv before clearing PostgreSQL
   selectors, then dynamically loads index.js. Root npm run server does not use it.
 - The tunnel forwards the API only; it is separate from Expo's Metro tunnel.
@@ -116,7 +121,7 @@ Express PDF routes ------------------> UniSafe/assets/Policies/
 | API fields/statuses | Route validation, model, both schemas, client APIs/normalizers, consuming UI |
 | Incident access | src/auth/incident-access.js, incident/dashboard routes, realtime emitters |
 | Auth/session | Server auth modules, client APIs, AuthContext/mobile login and lifecycle |
-| Realtime | Server emitters, client transports, feed subscriptions, screen cleanup |
+| Realtime | Server emitters/role rooms, client transports, feed subscriptions, screen cleanup |
 | Policies | Catalog, PDF assets, index scripts, rag.js, PolicyBrowser/AskPolicyAI |
 | Deployment | Blueprint/Compose, Dockerfiles, app/EAS config, env templates, deployment guides |
 | Local demos | demo-tools/, LOCAL-TUNNEL-DEMO.md, start-sqlite.js, mobile URL resolution, EAS profile overrides |

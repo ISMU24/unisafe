@@ -1,11 +1,25 @@
 [build]
+  base = "uniforce-dashboard"
   command = "npm run build"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "22"
 
-# SPA fallback: every route resolves to index.html so react-router works on
+# REST and Socket.IO use VITE_API_URL directly. These paths are not SPA routes.
+[[redirects]]
+  from = "/api/*"
+  to = "/api-unavailable.json"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/socket.io/*"
+  to = "/api-unavailable.json"
+  status = 404
+  force = true
+
+# SPA fallback: page routes resolve to index.html so react-router works on
 # hard refresh. Hashed assets are excluded because they must serve from disk.
 #
 # There is deliberately no /socket.io proxy rule here. The dashboard opens its

@@ -1,6 +1,6 @@
 # UniSafe - Technology and Operations
 
-Reviewed against local manifests/source on 2026-10-12 (Pacific/Port_Moresby).
+Reviewed against local manifests/source on 2026-10-13 (Pacific/Port_Moresby).
 Versions are declared dependency ranges, not claims about the latest releases.
 
 ## Stack
@@ -9,13 +9,13 @@ Versions are declared dependency ranges, not claims about the latest releases.
 |---|---|
 | Mobile | Expo ~57.0.26, React Native ~0.86.3, React 19.2.3, React Navigation 7, AsyncStorage 2.2.0, Reanimated ~4.5, Worklets ~0.10 |
 | Mobile capabilities | expo-location, expo-image-picker, expo-web-browser, Fuse.js 7, Socket.IO client ^4.8.4 |
-| API | Node.js, Express ^4.21.0, ESM, Zod ^3.23.8, Socket.IO ^4.7.5 |
+| API | Node.js, Express ^4.21.0, Busboy ^1.6.0, ESM, Zod ^3.23.8, Socket.IO ^4.7.5 |
 | Database | pg ^8.23.0, better-sqlite3 ^13.0.3; shared async adapter, no ORM |
 | Auth/security | jsonwebtoken ^9.0.3, bcrypt ^6.0.0, helmet ^8.3.0, express-rate-limit ^8.7.0, cors, dotenv |
 | Policy Q&A | Anthropic SDK ^0.32.1, Voyage HTTP embeddings, local JSON index |
 | Dashboard | React ^19.2.0, Vite ^8.2.0, React plugin ^6.1.1, React Router ^7.18.2 |
 | Dashboard visuals | Leaflet/react-leaflet, Recharts, Chart.js/react-chartjs-2, lucide-react |
-| Checks | Vitest ^2.1.0, Supertest 7, Node test runner for mobile API, Chrome DevTools scripts |
+| Checks | Vitest ^4.1.11, Supertest ^7.0.0, Node test runner for mobile API, dashboard browser/live scripts |
 
 Root/mobile require Node >=22.13.0. Server/dashboard declare "type": "module";
 Expo transforms mobile source, while mobile Babel/Metro config and policy scripts
@@ -54,9 +54,9 @@ not read by the resolver; use the environment variable or extra.apiUrl.
 
 The mobile REST client adds ngrok-skip-browser-warning: true to every request,
 including refresh/retry. Mobile Socket.IO adds it through extraHeaders while
-retaining token auth and websocket/polling transports. Server CORS_HEADERS only
-lists Content-Type, Authorization, Accept, so cross-origin Expo web requests
-with the added header are not covered by the native checks and can fail preflight.
+retaining token auth and websocket/polling transports. The API CORS allowlist
+includes this header. Expo web preflight still needs a real browser-origin check;
+native mocked tests do not prove it works in a deployed browser.
 
 ## Commands
 
@@ -106,12 +106,13 @@ db:reset-reports is destructive local SQLite maintenance, not routine validation
 - vite.config.js provides dev proxies. An explicit VITE_API_URL makes clients
   use that origin; CORS must match the browser origin.
 - EAS has development, preview APK, production, and production APK profiles.
-  Preview and production target Render; production-apk currently targets an ngrok
-  HTTPS origin. Development has no profile URL. Check the selected profile before
-  building: a Cloudflare tunnel or local .env change does not update eas.json.
-- app.json now includes extra.eas.projectId. Its Android permissions currently
-  contain duplicated fine/coarse location entries and RECORD_AUDIO; review the
-  required permissions separately before a release. Configuration is not build evidence.
+  Preview and production target the Render API; production-apk currently targets
+  a temporary ngrok HTTPS origin. Development has no profile URL. Check the
+  selected profile before building: a Cloudflare tunnel or local .env change does
+  not update eas.json.
+- app.json includes extra.eas.projectId. Its Android permission list currently
+  contains INTERNET and one fine/coarse location entry each; confirm those remain
+  necessary for the release. Configuration is not build evidence.
 - Android native output is generated/ignored. Prefer Expo configuration for
   durable changes. Rebuild clients after changing bundled public origins.
 - /health and /api/health are public readiness checks. Require db.connected and

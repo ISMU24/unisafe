@@ -1,43 +1,47 @@
 # UniSafe - Work Completed and Current Handoff
 
-Reviewed on 2026-10-12 (Pacific/Port_Moresby).
-The October 5 record below is based on the local source, Git history, working-tree
-changes, and checks available at that time. Remote deployment/build records were
-not available; do not infer their outcomes from local configuration.
+Reviewed on 2026-10-13 (Pacific/Port_Moresby).
+This handoff distinguishes current local source/checks from live deployment,
+hosted database, and device evidence. Never infer remote status from config alone.
 
-## Continuation update (2026-10-12)
+## Current review (2026-10-13)
 
-- Re-scanned all five Markdown files in `.amazonq/rules/memory-bank/` against the
-  current source and working tree. Updated the review dates and corrected stale
-  descriptions of database selection, appeal submission failures, and dashboard
-  password changes. No credentials or temporary tunnel URLs were added.
-- Appeal submission errors now leave the form available and show that delivery
-  was not confirmed; no local fake appeal or success ID is added.
-- Dashboard password changes now go through the authenticated request helper,
-  which attaches the bearer token and supports the existing refresh/retry flow.
-  The full authenticated browser flow has not been exercised.
-- On 2026-10-12, the dashboard production build passed (with the existing
-  >500 kB chunk warning) and mobile API smoke checks passed 8/8. The server suite
-  result below remains the historical 2026-10-05 run; it was not rerun here.
-- These edits remain in the existing worktree; no commit, deployment, browser
-  session, or physical-device test was performed.
+- Re-scanned the tracked application source, deployment files, package manifests,
+  test scripts, existing agent instructions, and all five `.amazonq` memory-bank
+  files. Updated all five memory files; no application source was changed.
+- Current source is at HEAD `7b18d4b` on `master`. The worktree was clean before
+  this documentation update.
+- Latest local checks: server suite 97/97 across 9 files; mobile API checks 8/8;
+  dashboard production build passed. These checks do not prove browser E2E,
+  hosted PostgreSQL, deployed service, or physical-device behavior.
+- Read-only probes on 2026-10-13 to the previously assumed public API/dashboard
+  Render addresses returned HTTP 404. Actual Render-assigned URLs and a live
+  UniSafe deployment were not confirmed.
+- Environment files were assessed without copying secret values into notes.
+  Existing local development/tunnel settings are not proof of production host
+  configuration. No deployment, external database write, hosted seed, or reset
+  was performed; automated tests use an isolated in-memory SQLite database.
+- Updated stale notes: mobile incident images now upload to the API; dashboard
+  AI Tools is policy Q&A; recycle-bin support is present; mobile CORS allowlist
+  includes its warning header; Android permissions no longer have the duplicate/
+  audio entries noted in the earlier review.
 
 ## Scan scope and evidence
 
-- Inventoried the repository and reviewed the four existing memory-bank files,
-  both application AGENTS.md files, package manifests, deployment configuration,
-  demo helpers, routes, client transports, relevant UI, test setup, and Git diffs.
-- The source inventory contains 116 JS/JSX/MJS/PowerShell/SQL files, excluding
-  dependencies, generated native/build output, .git, env files, and lockfiles.
-  Source searches covered application capabilities, routes, mock/fallback paths,
-  subscriptions, and known gaps; key implementations were read directly.
-- Reviewed all nine local commits through HEAD 1968b67 and the staged, unstaged,
-  and untracked changes present at scan time. Commit dates below use +10:00.
-- Policy PDFs/images and the generated embedding index were inventoried, not
-  substantively audited. Real .env files, credentials, and database contents were
-  not copied into these notes. Generated APKs were checked for presence/size only.
-- This was a documentation refresh with existing local checks, not a dependency
-  vulnerability audit or proof of production readiness.
+- The current tracked source inventory contains 122 JS/JSX/MJS/PowerShell/SQL
+  files (86 JS, 23 JSX, 8 MJS, 4 PS1, 1 SQL), excluding generated and dependency
+  trees by using Git's tracked-file list. Package manifests, lockfiles, tests,
+  Markdown docs, and deployment configuration were additionally reviewed.
+- Read the five current memory files and both app AGENTS.md files; inspected
+  current API routes/models/schema, mobile API/report flows, dashboard API/pages,
+  auth/realtime, demo/deployment config, and latest commit summaries.
+- Recent commits since the earlier source review were inspected. Detailed
+  historical milestone notes follow; current uncommitted state is documented above.
+- Policy PDFs/images and the generated embedding index were not substantively
+  audited. Environment presence/configuration was checked without recording real
+  values. No database contents were read or stored in this document.
+- This was a documentation/source-readiness refresh, not a security audit,
+  dependency vulnerability audit, production deployment, or device acceptance.
 
 ## Committed milestones
 
@@ -56,13 +60,24 @@ not available; do not infer their outcomes from local configuration.
 The initial commit contains substantial pre-existing implementation. Git does not
 provide separate earlier milestones for each of those features.
 
+## Recent committed milestones
+
+| Date | Commit | Work recorded in Git |
+|---|---|---|
+| 2026-10-12 | aa8d494 | Admin recycle-bin API/model and dashboard UI, soft-delete schema updates, page/API access wiring, regression tests, plus dashboard/API refinements |
+| 2026-10-12 | f9fb659 | Dashboard login page and campus image update |
+| 2026-10-12 | 8622102 | Merge of unused-file cleanup |
+| 2026-10-13 | 96ffdbd | Structured incident taxonomy, mobile report-flow revisions, bounded incident image upload/retrieval, corresponding schema/model/API/tests, and category-specific incident realtime routing |
+| 2026-10-13 | 7b18d4b | Dashboard route/session loading guard, Android permission cleanup, package/test updates and deployment-secret regression coverage |
+
 ## Implemented platform behavior
 
 - Mobile has incident reporting/history/detail, SOS/status, targeted alerts,
   assistance, appeals UI, emergency contacts, policy browsing/search/Q&A, session
-  login/logout, and themes. Confirmed incident/SOS/assistance delivery requires a
-  server ID; photos remain preview-only. Failed appeals remain unconfirmed and
-  do not create a local success record (corrected in the 2026-10-12 update above).
+  login/logout, and themes. Incident reporting supports up to three JPEG/PNG
+  attachments (2 MB each) through the API. Confirmed incident/SOS/assistance
+  delivery requires a server ID. Failed appeals remain unconfirmed and do not
+  create a local success record.
 - The API implements JWT access/rotating refresh sessions, six roles, domain CRUD,
   incident category/ownership checks, anonymous REST presentation, audit logs,
   status histories for incidents/SOS, and authenticated Socket.IO events.
@@ -71,7 +86,10 @@ provide separate earlier milestones for each of those features.
   exercise adapter behavior but do not prove PostgreSQL execution in production.
 - Dashboard operational feeds use the API. Home combines separate incident and
   SOS feeds; Emergency reads SOS; the notification bell reads /api/alerts/my.
-  Analytics, reports/export, user management, and admin audit inspection exist.
+  Analytics, reports/export, user management, admin audit inspection, and an
+  ADMIN/ICT_ADMIN recycle bin with restore/permanent-delete flows exist.
+- Dashboard AI Tools calls policy Q&A; mock incident/staffing/hotspot analysis
+  was removed. The shared mockData module still contains display constants.
 - Policy AI uses server-side Voyage/Anthropic configuration and the policy index.
   Missing configuration returns POLICY_UNAVAILABLE (503), with browse guidance.
 - Seed fixtures use eight fictional accounts and DEMO ONLY operational records.
@@ -81,7 +99,7 @@ provide separate earlier milestones for each of those features.
 See product.md for capabilities and limits, structure.md for navigation, tech.md
 for exact commands/configuration, and guidelines.md for implementation conventions.
 
-## Work present outside HEAD at scan time
+## Work present outside HEAD at the 2026-10-12 scan
 
 - The four original Amazon Q memory files, root .gitignore changes, and three LAN
   helper scripts were already staged. They were preserved; this refresh does not
@@ -105,8 +123,9 @@ for exact commands/configuration, and guidelines.md for implementation conventio
   eas.json production-apk now points to ngrok; preview/production still point to
   Render. The Cloudflare launcher does not reconcile these profile settings.
 
-These files exist locally; their presence is not evidence they have been pushed,
-deployed, or built into the APK on a phone.
+These files existed locally at that earlier scan. Subsequent commits brought later
+source changes into HEAD; repository presence still does not prove deployment,
+cloud build, or APK installation.
 
 ## Local APK artifacts observed
 
@@ -135,29 +154,43 @@ The previous memory bank recorded 73 server tests and six mobile checks on
 No public tunnel, deployment, hosted database, browser/live script, seed/reset,
 policy indexing, or physical-device acceptance was run for this refresh.
 
-## Remaining work and source discrepancies as of 2026-10-12
+## Remaining work and source discrepancies as of 2026-10-13
 
-1. Select and verify the intended demo API origin before any APK build. Reconcile
-   Render/ngrok profile settings with the Cloudflare workflow when that workflow
-   is chosen; do not assume a running tunnel updates an installed APK.
-2. Perform the physical-device incident/SOS/status/alert checks in TESTING.md.
-   Its hosted workflow expects PostgreSQL; a local SQLite demo should report
-   sqlite instead. Record failures and immediate socket updates separately from
-   eventual polling/refetch recovery.
-3. Review incident socket privacy/category scoping against REST and restrict the
-   legacy join-room handler's arbitrary role:* joins before relying on role rooms
-   for sensitive delivery. These are source findings, not new live attack tests.
-4. Resolve mobile custom-header compatibility for cross-origin Expo web: server
-   CORS_HEADERS omits ngrok-skip-browser-warning. Native mocked checks cannot
-   establish browser preflight success.
-5. AI Tools sample analysis, non-persisting Settings, local mobile profile edits,
-   and preview-only photos remain unfinished integration work.
-6. Review duplicate Android location permissions and RECORD_AUDIO, policy scripts'
-   Assets/assets casing, and the unmounted general API/upload/AI rate limiters.
-7. Older AGENTS/deployment descriptions still contain stale module paths, test
-   counts, mobile fallback addresses, realtime guarantees, and EAS profile values.
-   Use the current source-backed memory notes for facts while following applicable
-   repository instructions. Documentation outside .amazonq was not changed here.
+1. Obtain the actual Render-assigned API/dashboard URLs and verify deployed
+   environment values and both health endpoints. Previously assumed public URLs
+   returned 404; no live deployment is confirmed. Resolve this before seeding or
+   login checks.
+2. Select a durable production PostgreSQL plan and confirm the real API/dashboard
+   origins are correctly set in Render and the intended EAS profile. The
+   production-apk profile still uses a temporary tunnel origin; a tunnel or local
+   `.env` change does not update an installed APK.
+3. Fix/limit the legacy Socket.IO `join-room` handler: an authenticated client
+   can still request arbitrary `role:*` room names. Category-specific incident
+   emits and anonymous presentation exist, but that room-join gap prevents treating
+   role rooms as a complete authorization boundary.
+4. Complete the physical-device incident/SOS/status/alert and image-upload checks
+   in TESTING.md. Separate immediate Socket.IO delivery from polling/refetch; do
+   not simulate an uncoordinated emergency.
+5. Validate dashboard browser login/password change, deep-link refresh, CORS
+   preflight, and realtime behavior against the actual deployed origins.
+6. Dashboard Settings controls remain non-persistent; mobile profile edits remain
+   local; dashboard identity edits are administrator-managed. Policy scripts use
+   `Assets` while runtime paths use `assets`, so verify casing before Linux
+   regeneration. General API/upload/AI rate limiters remain exported but unmounted.
+7. Older sections of application guidance/deployment docs may still describe
+   stale paths, test counts, fallbacks, or profile values. Consult source and the
+   current memory notes; this refresh intentionally changed only `.amazonq`.
+
+## Checks run on 2026-10-13
+
+| Check | Result and limit |
+|---|---|
+| API `npm test` | 97/97 passed across 9 files; test setup uses isolated SQLite, not hosted PostgreSQL |
+| Mobile `node --test scripts/check-api.mjs` | 8/8 passed; local mocked/offline checks, not a phone or deployed browser |
+| Dashboard `npm run build` | Passed; no build warning in this run; does not validate live API/origin or browser behavior |
+| Public host probes | The previously assumed API and dashboard addresses returned HTTP 404; actual Render URLs remain unknown |
+| Local service probes | API/dashboard were not running; no local live integration check |
+| Documentation edits | All five memory-bank files updated; Markdown fences/local links and `git diff --check` passed |
 
 ## Maintenance rule
 
