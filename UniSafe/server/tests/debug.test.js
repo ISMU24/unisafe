@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import db, { initializeDatabase, isPostgres } from '../src/config/db.js';
 
-describe('Debug database state', () => {
+describe('Database initialization', () => {
   beforeAll(async () => {
     await initializeDatabase();
   });
@@ -26,7 +26,6 @@ describe('Debug database state', () => {
 
   it('should have roles after initialization', async () => {
     const roles = await db.prepare('SELECT * FROM roles').all();
-    console.log('Roles:', roles);
     expect(roles.length).toBe(6);
   });
 
@@ -43,12 +42,11 @@ describe('Debug database state', () => {
     `).run(userId, 'Test User', 'test@example.com', passwordHash, 'TEST-001', '+67571234567');
     
     const roleResult = await db.prepare('SELECT id FROM roles WHERE name = ?').get('STUDENT');
-    console.log('Role result:', roleResult);
+    expect(roleResult).toBeDefined();
     
     await db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)').run(userId, roleResult.id);
     
     const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-    console.log('User:', user);
     
     expect(user).toBeDefined();
   });

@@ -12,6 +12,14 @@ import { loginLimiter } from '../src/config/rate-limits.js';
 describe('Deployment safeguards', () => {
   it('rejects missing, short, repeated, placeholder and identical production secrets', () => {
     const strong = () => crypto.randomBytes(32).toString('hex');
+    const productionEnv = (access, refresh) => ({
+      ...process.env,
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://test:test@127.0.0.1:5432/unisafe-test',
+      DB_SSL: 'false',
+      JWT_ACCESS_SECRET: access,
+      JWT_REFRESH_SECRET: refresh,
+    });
     const cases = [
       ['', strong()], ['short', strong()], ['a'.repeat(64), strong()],
       ['replace-me-with-your-secret-at-least-32-chars', strong()],
@@ -20,14 +28,14 @@ describe('Deployment safeguards', () => {
     cases.push([same, same]);
     for (const [access, refresh] of cases) {
       const result = spawnSync(process.execPath, ['--input-type=module', '-e', "await import('./src/auth/tokens.js')"], {
-        env: { ...process.env, NODE_ENV: 'production', JWT_ACCESS_SECRET: access, JWT_REFRESH_SECRET: refresh },
+        env: productionEnv(access, refresh),
         encoding: 'utf8', timeout: 10000,
       });
       expect(result.status).toBe(1);
       expect(result.stderr).toMatch(/JWT_.*SECRET/);
     }
     const valid = spawnSync(process.execPath, ['--input-type=module', '-e', "await import('./src/auth/tokens.js')"], {
-      env: { ...process.env, NODE_ENV: 'production', JWT_ACCESS_SECRET: strong(), JWT_REFRESH_SECRET: strong() },
+      env: productionEnv(strong(), strong()),
       encoding: 'utf8', timeout: 10000,
     });
     expect(valid.status).toBe(0);
@@ -39,7 +47,14 @@ describe('Deployment safeguards', () => {
     expect(access).toHaveLength(44);
     expect(refresh).toHaveLength(44);
     const result = spawnSync(process.execPath, ['--input-type=module', '-e', "await import('./src/auth/tokens.js')"], {
-      env: { ...process.env, NODE_ENV: 'production', JWT_ACCESS_SECRET: access, JWT_REFRESH_SECRET: refresh },
+      env: {
+        ...process.env,
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://test:test@127.0.0.1:5432/unisafe-test',
+        DB_SSL: 'false',
+        JWT_ACCESS_SECRET: access,
+        JWT_REFRESH_SECRET: refresh,
+      },
       encoding: 'utf8', timeout: 10000,
     });
     expect(result.status).toBe(0);

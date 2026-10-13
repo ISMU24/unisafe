@@ -1,21 +1,23 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
-import DashboardLayout from './layouts/Dashboardlayout.jsx'
-import Login from './pages/Login.jsx'
-import Dashboard from './pages/Dashboard.jsx'
-import Emergency from './pages/Emergency.jsx'
-import Incidents from './pages/Incidents.jsx'
-import Analytics from './pages/Analytics.jsx'
-import Reports from './pages/Reports.jsx'
-import Users from './pages/Users.jsx'
-import Profile from './pages/Profile.jsx'
-import Settings from './pages/Settings.jsx'
-import AITools from './pages/AITools.jsx'
-import AuditLogs from './pages/AuditLogs.jsx'
-import RecycleBin from './pages/RecycleBin.jsx'
 import { LoadingBlock } from './components/UniForceUI.jsx'
 import { RESPONDER_ROLES } from './utils/roles.js'
+
+const DashboardLayout = lazy(() => import('./layouts/Dashboardlayout.jsx'))
+const Login = lazy(() => import('./pages/Login.jsx'))
+const Dashboard = lazy(() => import('./pages/Dashboard.jsx'))
+const Emergency = lazy(() => import('./pages/Emergency.jsx'))
+const Incidents = lazy(() => import('./pages/Incidents.jsx'))
+const Analytics = lazy(() => import('./pages/Analytics.jsx'))
+const Reports = lazy(() => import('./pages/Reports.jsx'))
+const Users = lazy(() => import('./pages/Users.jsx'))
+const Profile = lazy(() => import('./pages/Profile.jsx'))
+const Settings = lazy(() => import('./pages/Settings.jsx'))
+const AITools = lazy(() => import('./pages/AITools.jsx'))
+const AuditLogs = lazy(() => import('./pages/AuditLogs.jsx'))
+const RecycleBin = lazy(() => import('./pages/RecycleBin.jsx'))
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -37,27 +39,29 @@ function RoleRoute({ allow, children }) {
 function AppRoutes() {
   const { user, logout } = useAuth()
   return (
-    <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/" element={
-        <PrivateRoute>
-          <DashboardLayout onLogout={logout} />
-        </PrivateRoute>
-      }>
-        <Route index element={<Dashboard />} />
-        <Route path="emergency" element={<RoleRoute allow={RESPONDER_ROLES}><Emergency /></RoleRoute>} />
-        <Route path="incidents" element={<Incidents />} />
-        <Route path="analytics" element={<RoleRoute allow={RESPONDER_ROLES}><Analytics /></RoleRoute>} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="users" element={<Users />} />
-        <Route path="profile" element={<Profile />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="ai-tools" element={<AITools />} />
-        <Route path="audit-logs" element={<RoleRoute allow={['ADMIN', 'ICT_ADMIN']}><AuditLogs /></RoleRoute>} />
-        <Route path="recycle-bin" element={<RoleRoute allow={['ADMIN', 'ICT_ADMIN']}><RecycleBin /></RoleRoute>} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <Suspense fallback={<LoadingBlock label="Loading page…" />}>
+      <Routes>
+        <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/" element={
+          <PrivateRoute>
+            <DashboardLayout onLogout={logout} />
+          </PrivateRoute>
+        }>
+          <Route index element={<Dashboard />} />
+          <Route path="emergency" element={<RoleRoute allow={RESPONDER_ROLES}><Emergency /></RoleRoute>} />
+          <Route path="incidents" element={<Incidents />} />
+          <Route path="analytics" element={<RoleRoute allow={RESPONDER_ROLES}><Analytics /></RoleRoute>} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="users" element={<Users />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="ai-tools" element={<AITools />} />
+          <Route path="audit-logs" element={<RoleRoute allow={['ADMIN', 'ICT_ADMIN']}><AuditLogs /></RoleRoute>} />
+          <Route path="recycle-bin" element={<RoleRoute allow={['ADMIN', 'ICT_ADMIN']}><RecycleBin /></RoleRoute>} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   )
 }
 
