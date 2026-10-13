@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, ScrollView } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { radius } from '../src/theme';
 import { useTheme } from '../src/ThemeContext';
@@ -9,20 +10,28 @@ import CategoryBadge, { StatusBadge } from '../src/components/CategoryBadge';
 
 const FILTERS = ['All', 'Submitted', 'Received', 'Under Review', 'Assigned', 'Responding', 'Resolved', 'Closed', 'Cancelled'];
 
-const STATUS_COLORS = {
-  Submitted:      '#D32F2F',
-  'Under Review': '#E65100',
-  'In Progress':  '#E65100',
-  Resolved:       '#2E7D32',
-  Closed:         '#9E9E9E',
-  Open:           '#D32F2F',
-};
 const STATUS_ICONS = {
-  Submitted: '🔴', 'Under Review': '🟡', 'In Progress': '🟡', Resolved: '🟢', Closed: '⚪', Open: '🔴',
+  Submitted: 'error-outline',
+  Received: 'schedule',
+  'Under Review': 'manage-search',
+  Assigned: 'assignment-ind',
+  Responding: 'directions-run',
+  'In Progress': 'schedule',
+  Resolved: 'check-circle',
+  Closed: 'check-circle-outline',
+  Cancelled: 'cancel',
+  Open: 'error-outline',
 };
 
+function statusColor(status, colors) {
+  if (['Submitted', 'Open', 'Cancelled'].includes(status)) return colors.statusOpen;
+  if (['Under Review', 'Received', 'Assigned', 'Responding', 'In Progress'].includes(status)) return colors.statusInProgress;
+  if (status === 'Resolved') return colors.statusResolved;
+  return colors.statusClosed;
+}
+
 export default function MyReportsScreen({ navigation, route }) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('All');
@@ -80,17 +89,15 @@ export default function MyReportsScreen({ navigation, route }) {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.filterBar, { backgroundColor: colors.surfaceCard, borderBottomColor: colors.border }]} contentContainerStyle={s.filterContent}>
         {FILTERS.map(f => {
           const isActive = filter === f;
-          const statusColor = STATUS_COLORS[f] || colors.primary;
+          const selectedColor = f === 'All' ? colors.primary : statusColor(f, colors);
           return (
             <TouchableOpacity
               key={f}
-              style={[s.chip, { borderColor: colors.border, backgroundColor: colors.surfaceAlt }, isActive && { backgroundColor: statusColor, borderColor: statusColor }]}
+              style={[s.chip, { borderColor: colors.border, backgroundColor: colors.surfaceCard }, isActive && { backgroundColor: selectedColor, borderColor: selectedColor }]}
               onPress={() => setFilter(f)}
               activeOpacity={0.8}
             >
-              <Text style={[s.chipText, { color: colors.textSecondary }, isActive && { color: '#fff' }]}>
-                {f !== 'All' ? `${STATUS_ICONS[f] || ''} ${f}` : f}
-              </Text>
+              <Text style={[s.chipText, { color: colors.textSecondary }, isActive && { color: '#fff' }]}>{f}</Text>
             </TouchableOpacity>
           );
         })}
@@ -102,7 +109,7 @@ export default function MyReportsScreen({ navigation, route }) {
         contentContainerStyle={{ padding: 12, paddingBottom: 30 }}
         ListEmptyComponent={
           <View style={s.empty}>
-            <Text style={{ fontSize: 40, marginBottom: 12 }}>📋</Text>
+            <MaterialIcons name="folder-open" size={40} color={colors.textMuted} style={{ marginBottom: 12 }} />
             <Text style={[s.emptyText, { color: colors.textMuted }]}>No reports in this category</Text>
           </View>
         }
@@ -117,18 +124,23 @@ export default function MyReportsScreen({ navigation, route }) {
                   <View style={s.badgeRow}>
                     <CategoryBadge category={item.category} />
                     <StatusBadge status={item.status} />
-                    {item.anonymous && <Text style={[s.anonTag, { color: colors.textMuted }]}>🕵️ Anon</Text>}
+                    {item.anonymous && (
+                      <View style={s.anonTag}>
+                        <MaterialIcons name="visibility-off" size={14} color={colors.textMuted} />
+                        <Text style={{ color: colors.textMuted, fontSize: 11 }}>Confidential</Text>
+                      </View>
+                    )}
                   </View>
                   <Text style={[s.submittedAt, { color: colors.textMuted }]}>Submitted: {item.submittedAt}</Text>
                 </View>
-                <Text style={[s.chevron, { color: colors.textMuted }]}>{isExpanded ? '▲' : '▼'}</Text>
+                <MaterialIcons name={isExpanded ? 'expand-less' : 'expand-more'} size={22} color={colors.textMuted} />
               </TouchableOpacity>
               {isExpanded && (
                 <View style={s.timeline}>
                   <Text style={[s.timelineLabel, { color: colors.textSecondary }]}>STATUS TIMELINE</Text>
                   {detailLoading === item.id && <ActivityIndicator color={colors.primary} />}
                   {item.timeline.map((ev, i) => {
-                    const cfg = { color: STATUS_COLORS[ev.status] || colors.textMuted, icon: STATUS_ICONS[ev.status] || '•' };
+                    const cfg = { color: statusColor(ev.status, colors), icon: STATUS_ICONS[ev.status] || 'radio-button-unchecked' };
                     return (
                       <View key={i} style={s.tlRow}>
                         <View style={s.tlLeft}>
@@ -136,7 +148,10 @@ export default function MyReportsScreen({ navigation, route }) {
                           {i < item.timeline.length - 1 && <View style={[s.tlLine, { backgroundColor: colors.border }]} />}
                         </View>
                         <View style={[s.tlBody, i === item.timeline.length - 1 && { paddingBottom: 0 }]}>
-                          <Text style={[s.tlStatus, { color: cfg.color }]}>{cfg.icon} {ev.status}</Text>
+                          <View style={s.timelineStatus}>
+                            <MaterialIcons name={cfg.icon} size={16} color={cfg.color} />
+                            <Text style={[s.tlStatus, { color: cfg.color }]}>{ev.status}</Text>
+                          </View>
                           <Text style={[s.tlNote, { color: colors.textSecondary }]}>{ev.note}</Text>
                           <Text style={[s.tlTime, { color: colors.textMuted }]}>{ev.time}</Text>
                         </View>
@@ -170,9 +185,8 @@ const s = StyleSheet.create({
   incidentId:       { fontSize: 12, fontFamily: 'Courier New', marginBottom: 4 },
   incidentTitle:    { fontSize: 14, fontWeight: '700', lineHeight: 20, marginBottom: 8 },
   badgeRow:         { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 },
-  anonTag:          { fontSize: 11 },
+  anonTag:          { flexDirection: 'row', alignItems: 'center', gap: 3 },
   submittedAt:      { fontSize: 11 },
-  chevron:          { fontSize: 16, marginTop: 2 },
   timeline:         { padding: 16 },
   timelineLabel:    { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 14 },
   tlRow:            { flexDirection: 'row', gap: 12 },
@@ -181,6 +195,7 @@ const s = StyleSheet.create({
   tlLine:           { width: 2, flex: 1, marginTop: 4 },
   tlBody:           { flex: 1, paddingBottom: 16 },
   tlStatus:         { fontSize: 13, fontWeight: '700' },
+  timelineStatus:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
   tlNote:           { fontSize: 12, marginTop: 2 },
   tlTime:           { fontSize: 11, marginTop: 3, fontFamily: 'Courier New' },
 });

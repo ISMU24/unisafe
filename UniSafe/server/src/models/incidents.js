@@ -13,6 +13,7 @@ export async function createIncident(data) {
   const {
     reporter_id,
     category,
+    incident_type = null,
     title,
     description,
     latitude,
@@ -27,10 +28,10 @@ export async function createIncident(data) {
   const id = generateId();
   
   await db.prepare(`
-    INSERT INTO incidents (id, reporter_id, category, title, description, latitude, longitude,
+    INSERT INTO incidents (id, reporter_id, category, incident_type, title, description, latitude, longitude,
        location_text, priority, is_anonymous, is_sos, assignee_id, status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', ?, ?)
-  `).run(id, reporter_id, category, title, description, latitude, longitude, location_text, priority, Boolean(is_anonymous), Boolean(is_sos), assignee_id, now(), now());
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', ?, ?)
+  `).run(id, reporter_id, category, incident_type, title, description, latitude, longitude, location_text, priority, Boolean(is_anonymous), Boolean(is_sos), assignee_id, now(), now());
 
   await db.prepare(`
     INSERT INTO incident_status_history (id, incident_id, old_status, new_status, changed_by, note, created_at)
@@ -248,16 +249,30 @@ export async function getIncidentStatusHistory(id) {
 }
 
 export async function getIncidentMedia(id) {
-  return await db.prepare(`SELECT * FROM incident_media WHERE incident_id = ? ORDER BY created_at ASC`).all(id);
+  return await db.prepare(`
+    SELECT id, incident_id, file_url, mime_type, file_size, uploaded_by, created_at
+    FROM incident_media WHERE incident_id = ? ORDER BY created_at ASC
+  `).all(id);
 }
 
-export async function addIncidentMedia(incidentId, fileUrl, mimeType, fileSize, uploadedBy) {
+export async function addIncidentMedia(incidentId, mimeType, fileSize, fileData, uploadedBy) {
   const id = generateId();
+  const fileUrl = `/api/incidents/${incidentId}/media/${id}`;
   await db.prepare(`
-    INSERT INTO incident_media (id, incident_id, file_url, mime_type, file_size, uploaded_by, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(id, incidentId, fileUrl, mimeType, fileSize, uploadedBy, now());
-  return await db.prepare(`SELECT * FROM incident_media WHERE id = ?`).get(id);
+    INSERT INTO incident_media (id, incident_id, file_url, mime_type, file_size, file_data, uploaded_by, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, incidentId, fileUrl, mimeType, fileSize, fileData, uploadedBy, now());
+  return await db.prepare(`
+    SELECT id, incident_id, file_url, mime_type, file_size, uploaded_by, created_at
+    FROM incident_media WHERE id = ?
+  `).get(id);
+}
+
+export async function getIncidentMediaById(incidentId, mediaId) {
+  return await db.prepare(`
+    SELECT id, incident_id, file_url, mime_type, file_size, file_data, uploaded_by, created_at
+    FROM incident_media WHERE incident_id = ? AND id = ?
+  `).get(incidentId, mediaId) || null;
 }
 
 export async function deleteIncident(id) {
@@ -339,6 +354,7 @@ export default {
   getIncidentStatusHistory,
   getIncidentMedia,
   addIncidentMedia,
+  getIncidentMediaById,
   deleteIncident,
   getIncidentStats,
 };

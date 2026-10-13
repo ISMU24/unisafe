@@ -54,7 +54,7 @@ export default function AskPolicyAI() {
     const isUser = item.role === 'user';
     return (
       <View style={[s.msgRow, isUser ? s.userRow : s.aiRow]}>
-        {!isUser && <View style={[s.avatar, { backgroundColor: '#455A64' }]}><Text style={s.avatarText}>🤖</Text></View>}
+        {!isUser && <View style={[s.avatar, { backgroundColor: colors.surfaceAlt }]}><MaterialIcons name="support-agent" size={18} color={colors.policy} /></View>}
         <View style={[s.bubble, isUser ? s.userBubble : s.aiBubble, { backgroundColor: isUser ? colors.primary : colors.surfaceCard, borderColor: isUser ? colors.primary : colors.border }]}>
           <Text style={[s.msgText, { color: isUser ? '#fff' : colors.textPrimary }]}>{item.text}</Text>
           {item.sources && item.sources.length > 0 && (
@@ -85,7 +85,7 @@ export default function AskPolicyAI() {
 
       {loading && (
         <View style={{ paddingHorizontal: 16, paddingVertical: 4 }}>
-          <ActivityIndicator size="small" color="#455A64" />
+          <ActivityIndicator size="small" color={colors.policy} />
         </View>
       )}
 
@@ -100,13 +100,16 @@ export default function AskPolicyAI() {
           autoCorrect={false}
           autoCapitalize="none"
         />
-        <TouchableOpacity style={[s.sendBtn, { backgroundColor: input.trim() ? '#455A64' : colors.surfaceAlt }]} onPress={send} disabled={!input.trim() || loading}>
+        <TouchableOpacity style={[s.sendBtn, { backgroundColor: input.trim() ? colors.primary : colors.disabled }]} onPress={send} disabled={!input.trim() || loading}>
           <MaterialIcons name="send" size={20} color={input.trim() ? '#fff' : colors.textMuted} />
         </TouchableOpacity>
       </View>
 
       <View style={{ backgroundColor: colors.surfaceCard, paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4, borderTopWidth: 1, borderTopColor: colors.border }}>
-        <Text style={[s.disclaimer, { color: colors.textMuted }]}>⚠️ AI-generated summary — always verify against the linked policy.</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <MaterialIcons name="info-outline" size={15} color={colors.textMuted} />
+          <Text style={[s.disclaimer, { color: colors.textMuted }]}>AI-generated summary — verify against the linked policy.</Text>
+        </View>
       </View>
     </View>
   );

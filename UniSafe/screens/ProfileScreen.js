@@ -23,7 +23,7 @@ export default function ProfileScreen({ navigation }) {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity onPress={toggleEdit} style={{ marginRight: 16 }}>
-          <MaterialIcons name="edit" size={22} color={isDark ? colors.textOnGold : '#fff'} />
+          <MaterialIcons name="edit" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       ),
     });
@@ -80,11 +80,11 @@ export default function ProfileScreen({ navigation }) {
     <ScrollView style={[styles.container, { backgroundColor: colors.surface }]} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
       {/* Avatar */}
       <View style={styles.avatarSection}>
-        <View style={[styles.avatar, { backgroundColor: colors.primary, borderColor: colors.accent }]}>
+        <View style={[styles.avatar, { backgroundColor: colors.primary, borderColor: colors.border }]}>
           <Text style={[styles.avatarText, { color: colors.textOnGold }]}>{initial}</Text>
         </View>
         <Text style={[styles.name, { color: colors.textPrimary }]}>{user.fullName}</Text>
-        <View style={[styles.roleBadge, { backgroundColor: colors.primary, borderColor: colors.accent }]}>
+        <View style={[styles.roleBadge, { backgroundColor: colors.primary, borderColor: colors.border }]}>
           <Text style={[styles.roleText, { color: colors.textOnGold }]}>{user.role?.toUpperCase()}</Text>
         </View>
       </View>
@@ -98,7 +98,7 @@ export default function ProfileScreen({ navigation }) {
       </View>
 
       {/* Appearance card */}
-      <View style={[styles.card, { backgroundColor: colors.surfaceCard, borderTopColor: colors.accent, shadowColor: colors.shadow }]}>
+      <View style={[styles.card, { backgroundColor: colors.surfaceCard, borderTopColor: colors.primaryLight, shadowColor: colors.shadow }]}>
         <View style={[styles.field, { borderBottomWidth: 0, paddingVertical: 16 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
             <MaterialIcons
@@ -154,7 +154,7 @@ export default function ProfileScreen({ navigation }) {
           <TouchableOpacity style={[styles.btn, styles.cancelBtn, { backgroundColor: colors.surfaceAlt }]} onPress={() => setEditing(false)}>
             <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.btn, { backgroundColor: colors.primary, borderColor: colors.accent, borderWidth: 1 }]} onPress={saveChanges} disabled={saving}>
+          <TouchableOpacity style={[styles.btn, { backgroundColor: colors.primary, borderColor: colors.primary, borderWidth: 1 }]} onPress={saveChanges} disabled={saving}>
             {saving ? <ActivityIndicator color={colors.textOnGold} size="small" /> : <Text style={{ color: colors.textOnGold, fontWeight: 'bold' }}>Save Changes</Text>}
           </TouchableOpacity>
         </View>

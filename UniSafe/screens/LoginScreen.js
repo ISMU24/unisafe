@@ -11,6 +11,34 @@ import { useTheme } from '../src/ThemeContext';
 import { api } from '../src/utils/api';
 import { connectRealtime } from '../src/utils/realtime';
 
+const legacyLightColors = {
+  primary: '#A80808',
+  accent: '#F8E808',
+  surface: '#FAFAFA',
+  surfaceCard: '#FFFFFF',
+  surfaceGold: '#FFF9C4',
+  border: '#E5E5E5',
+  textPrimary: '#1A1A1A',
+  textSecondary: '#424242',
+  textMuted: '#9E9E9E',
+  textOnGold: '#1A1A1A',
+  modalScrim: 'rgba(168,8,8,0.4)',
+};
+
+const legacyDarkColors = {
+  primary: '#D93030',
+  accent: '#F8E808',
+  surface: '#0E0E0E',
+  surfaceCard: '#1C1C1C',
+  surfaceGold: '#3A3306',
+  border: '#2E2E2E',
+  textPrimary: '#F5F5F5',
+  textSecondary: '#CFCFCF',
+  textMuted: '#888888',
+  textOnGold: '#1A1A1A',
+  modalScrim: 'rgba(0,0,0,0.75)',
+};
+
 const buildUser = (identifier, role) => {
   const id = (identifier || 'user').trim();
   const isEmail = id.includes('@');
@@ -25,7 +53,8 @@ const buildUser = (identifier, role) => {
 export default function LoginScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
-  const { colors, isDark } = useTheme();
+  const { isDark } = useTheme();
+  const colors = isDark ? legacyDarkColors : legacyLightColors;
   const [role, setRole] = useState('student');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -106,7 +135,7 @@ export default function LoginScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
-      <View style={[styles.topGoldBar, { backgroundColor: colors.accent }]} />
+      <View style={[styles.topGoldBar, { backgroundColor: colors.primary }]} />
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={[styles.container, { paddingTop: topPad, paddingBottom: bottomPad, flexGrow: 1 }]}
@@ -129,14 +158,15 @@ export default function LoginScreen({ navigation }) {
               onPress={() => setRole(r)}
               activeOpacity={0.8}
             >
+              <MaterialIcons name={r === 'student' ? 'school' : 'badge'} size={18} color={role === r ? colors.textOnGold : colors.textSecondary} />
               <Text style={[styles.roleBtnText, { color: colors.textSecondary }, role === r && { color: colors.textOnGold }]}>
-                {r === 'student' ? '🎓 Student' : '👤 Staff'}
+                {r === 'student' ? 'Student' : 'Staff'}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <View ref={idRef} collapsable={false} style={[styles.input, { backgroundColor: colors.surfaceCard }, idFocused && { borderColor: colors.primary }]}>
+        <View ref={idRef} collapsable={false} style={[styles.input, { backgroundColor: colors.surfaceCard, borderColor: colors.border }, idFocused && { borderColor: colors.primary }]}>
           <MaterialIcons name="person" size={20} color={colors.textMuted} style={styles.inputIcon} />
           <TextInput
             style={[styles.inputText, { color: colors.textPrimary }]}
@@ -156,7 +186,7 @@ export default function LoginScreen({ navigation }) {
           />
         </View>
 
-        <View ref={passRef} collapsable={false} style={[styles.input, { backgroundColor: colors.surfaceCard }, passFocused && { borderColor: colors.primary }]}>
+        <View ref={passRef} collapsable={false} style={[styles.input, { backgroundColor: colors.surfaceCard, borderColor: colors.border }, passFocused && { borderColor: colors.primary }]}>
           <MaterialIcons name="lock" size={20} color={colors.textMuted} style={styles.inputIcon} />
           <TextInput
             style={[styles.inputText, { flex: 1, color: colors.textPrimary }]}
@@ -192,7 +222,7 @@ export default function LoginScreen({ navigation }) {
         </View>
 
         <TouchableOpacity style={[styles.loginBtn, { backgroundColor: colors.primary, borderColor: colors.accent }]} onPress={handleLogin} disabled={loading} activeOpacity={0.85}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={[styles.loginText, { color: colors.textOnGold }]}>Login</Text>}
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={[styles.loginText, { color: '#FFFFFF' }]}>Sign in</Text>}
         </TouchableOpacity>
 
         <Text style={[styles.footer, { color: colors.textMuted }]}>Papua New Guinea University of Technology</Text>
@@ -223,16 +253,16 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: 'bold', letterSpacing: 4, marginBottom: 6 },
   subtitle: { fontSize: 14, marginBottom: 20 },
   roleRow: { flexDirection: 'row', borderRadius: 12, padding: 4, width: '100%', marginBottom: 16, gap: 4, borderWidth: 1 },
-  roleBtn: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
+  roleBtn: { flex: 1, flexDirection: 'row', gap: 7, paddingVertical: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   roleBtnText: { fontSize: 14, fontWeight: '600' },
-  input: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, width: '100%', marginBottom: 14, borderWidth: 1.5, borderColor: 'transparent' },
+  input: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, width: '100%', marginBottom: 14, borderWidth: 1 },
   inputIcon: { marginRight: 10 },
   inputText: { fontSize: 15 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 24 },
   rememberRow: { flexDirection: 'row', alignItems: 'center' },
   rememberText: { fontSize: 13, marginLeft: 4 },
   forgot: { fontSize: 13, fontWeight: '600' },
-  loginBtn: { borderRadius: 12, paddingVertical: 15, width: '100%', alignItems: 'center', marginBottom: 24, borderWidth: 2 },
+  loginBtn: { borderRadius: 12, paddingVertical: 15, width: '100%', alignItems: 'center', marginBottom: 24, borderWidth: 1 },
   loginText: { fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
   footer: { fontSize: 11, textAlign: 'center' },
   modalOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center' },

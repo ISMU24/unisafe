@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { ChevronRight, MapPin, Clock, Check, Trash2 } from 'lucide-react'
 import { SectionHeader, StatusPill, CatBadge, TableHeader, DetailRow, LoadingBlock, ErrorBanner } from '../components/UniForceUI.jsx'
-import { API_BASE, subscribeIncidents, subscribePersonnel, getIncidents, getIncident, updateIncidentStatus, assignIncident, recycleRecord } from '../api.js'
+import { subscribeIncidents, subscribePersonnel, getIncidents, getIncident, getIncidentMedia, updateIncidentStatus, assignIncident, recycleRecord } from '../api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { RESPONDER_ROLES, ADMIN_ROLES, hasAnyRole } from '../utils/roles.js'
 import { STAGES, teal } from '../services/mockData.js'
@@ -148,7 +148,14 @@ export default function Incidents() {
             borderTop: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left',
           }}>
             <span style={{ fontFamily: 'monospace', fontSize: 11.5, color: 'var(--text-muted)' }}>{i.id}</span>
-            <CatBadge type={i.type} />
+            <div style={{ minWidth: 0 }}>
+              <CatBadge type={i.type} />
+              {i.incidentType && (
+                <div style={{ color: 'var(--text-muted)', fontSize: 10.5, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {i.incidentType}
+                </div>
+              )}
+            </div>
             <span style={{ fontSize: 12.5, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: 8 }}>{i.desc}</span>
             <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{i.reporter}</span>
             <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{i.time}</span>
@@ -164,9 +171,11 @@ export default function Incidents() {
 function IncidentDetail({ inc, personnel, canManage, isAdmin, busy, actionError, detailLoading, detailError, onRetryDetail, onBack, onRecycle, onStatus, onAssign }) {
   const idx = STAGES.indexOf(inc.status)
   const media = Array.isArray(inc.media) ? inc.media : []
-  const attachments = media
-    .map(file => ({ file, href: attachmentUrl(file.file_url) }))
-    .filter(item => item.href)
+  const attachments = media.filter(file => file.id)
+  const coordinates = inc.latitude != null && inc.longitude != null &&
+    Number.isFinite(Number(inc.latitude)) && Number.isFinite(Number(inc.longitude))
+    ? `${Number(inc.latitude).toFixed(6)}, ${Number(inc.longitude).toFixed(6)}`
+    : 'GPS coordinates not supplied'
   return (
     <div style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
       <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 12.5, cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -180,6 +189,11 @@ function IncidentDetail({ inc, personnel, canManage, isAdmin, busy, actionError,
             <span style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--text-muted)' }}>{inc.id}</span>
             <CatBadge type={inc.type} />
           </div>
+          {inc.incidentType && (
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-muted)', marginTop: 8 }}>
+              Incident type: {inc.incidentType}
+            </div>
+          )}
           <div style={{ fontSize: 19, fontWeight: 800, color: 'var(--text)', marginTop: 4 }}>{inc.desc}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -236,10 +250,13 @@ function IncidentDetail({ inc, personnel, canManage, isAdmin, busy, actionError,
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
             <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>Details</div>
             <DetailRow label="Reporter" value={inc.reporter} />
+            <DetailRow label="Category" value={inc.type || 'Not specified'} />
+            <DetailRow label="Incident type" value={inc.incidentType || 'Not specified'} />
             <DetailRow label="Location" value={inc.loc} icon={MapPin} />
+            <DetailRow label="GPS coordinates" value={coordinates} icon={MapPin} />
             <DetailRow label="Reported" value={inc.time} icon={Clock} />
             <DetailRow label="Priority" value={inc.priority || 'Medium'} />
-            <DetailRow label="Anonymous" value={inc.anonymous ? 'Yes' : 'No'} last />
+            <DetailRow label="Identity visibility" value={inc.anonymous ? 'Confidential to responders' : 'Visible to responders'} last />
           </div>
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
             <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>Attachments</div>
@@ -247,28 +264,16 @@ function IncidentDetail({ inc, personnel, canManage, isAdmin, busy, actionError,
               <LoadingBlock label="Loading attachments…" />
             ) : attachments.length ? (
               <div style={{ display: 'grid', gap: 10 }}>
-                {attachments.map(({ file, href }, index) => {
+                {attachments.map((file, index) => {
                   const isImage = typeof file.mime_type === 'string' && file.mime_type.startsWith('image/')
-                  const filename = attachmentName(href) || `Attachment ${index + 1}`
                   return (
-                    <div key={file.id || href} style={{ minWidth: 0 }}>
-                      {isImage && (
-                        <a href={href} target="_blank" rel="noreferrer" aria-label={`Open ${filename}`}>
-                          <img
-                            src={href}
-                            alt={filename}
-                            loading="lazy"
-                            style={{ display: 'block', maxWidth: '100%', maxHeight: 240, objectFit: 'contain', borderRadius: 8, marginBottom: 8 }}
-                          />
-                        </a>
-                      )}
-                      <a href={href} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: 12.5, overflowWrap: 'anywhere' }}>
-                        {filename}
-                      </a>
-                      {file.file_size != null && (
-                        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 3 }}>{formatFileSize(file.file_size)}</div>
-                      )}
-                    </div>
+                    <IncidentAttachment
+                      key={file.id}
+                      incidentId={inc.docId}
+                      file={file}
+                      index={index}
+                      isImage={isImage}
+                    />
                   )
                 })}
               </div>
@@ -313,23 +318,61 @@ function IncidentDetail({ inc, personnel, canManage, isAdmin, busy, actionError,
   )
 }
 
-function attachmentUrl(fileUrl) {
-  if (typeof fileUrl !== 'string' || !fileUrl.trim()) return null
-  try {
-    const url = new URL(fileUrl, API_BASE || window.location.origin)
-    return ['http:', 'https:'].includes(url.protocol) ? url.href : null
-  } catch {
-    return null
-  }
-}
+function IncidentAttachment({ incidentId, file, index, isImage }) {
+  const [href, setHref] = useState('')
+  const [error, setError] = useState('')
+  const [retry, setRetry] = useState(0)
 
-function attachmentName(href) {
-  try {
-    const segment = new URL(href).pathname.split('/').filter(Boolean).at(-1)
-    return segment ? decodeURIComponent(segment) : null
-  } catch {
-    return null
+  useEffect(() => {
+    let active = true
+    let objectUrl = ''
+    setHref('')
+    setError('')
+    getIncidentMedia(incidentId, file.id)
+      .then(blob => {
+        if (!active) return
+        objectUrl = URL.createObjectURL(blob)
+        setHref(objectUrl)
+      })
+      .catch(err => { if (active) setError(err.message) })
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [incidentId, file.id, retry])
+
+  const filename = `Incident attachment ${index + 1}`
+  if (error) {
+    return (
+      <div style={{ minWidth: 0, color: 'var(--danger, #b42318)', fontSize: 12 }}>
+        {filename} could not be loaded: {error}{' '}
+        <button onClick={() => setRetry(value => value + 1)} style={{ color: 'var(--accent)', cursor: 'pointer' }}>Retry</button>
+      </div>
+    )
   }
+  if (!href) {
+    return <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Loading {filename.toLowerCase()}…</div>
+  }
+  return (
+    <div style={{ minWidth: 0 }}>
+      {isImage && (
+        <a href={href} target="_blank" rel="noreferrer" aria-label={`Open ${filename}`}>
+          <img
+            src={href}
+            alt={filename}
+            loading="lazy"
+            style={{ display: 'block', maxWidth: '100%', maxHeight: 240, objectFit: 'contain', borderRadius: 8, marginBottom: 8 }}
+          />
+        </a>
+      )}
+      <a href={href} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: 12.5, overflowWrap: 'anywhere' }}>
+        {filename}
+      </a>
+      {file.file_size != null && (
+        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 3 }}>{formatFileSize(file.file_size)}</div>
+      )}
+    </div>
+  )
 }
 
 function formatFileSize(bytes) {

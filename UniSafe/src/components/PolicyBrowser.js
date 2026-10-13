@@ -62,7 +62,7 @@ export default function PolicyBrowser() {
                   activeOpacity={0.8}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <Text style={{ fontSize: 18, marginRight: 10 }}>{cat.icon}</Text>
+                    <MaterialIcons name={cat.icon} size={20} color={colors.policy} style={{ marginRight: 10 }} />
                     <View>
                       <Text style={[s.catTitle, { color: colors.textPrimary }]}>{cat.label}</Text>
                       <Text style={[s.catCount, { color: colors.textMuted }]}>{policies.length} {policies.length === 1 ? 'policy' : 'policies'}</Text>

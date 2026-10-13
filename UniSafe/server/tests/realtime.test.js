@@ -193,6 +193,28 @@ describe('Realtime push (live server subprocess)', () => {
     expect(payload.incident.title).toBe('Realtime incident');
   });
 
+  it('masks confidential reporter identity in responder socket events', async () => {
+    const responder = await open(securityToken);
+    const pushed = once(responder, 'incident-update');
+    const created = await api('/api/incidents', {
+      method: 'POST',
+      token: studentToken,
+      body: {
+        category: 'Security',
+        title: 'Confidential report',
+        description: 'Responder payload must not include the reporter.',
+        is_anonymous: true,
+      },
+    });
+    expect(created.status).toBe(201);
+    expect(created.data.reporter_id).toBeDefined();
+
+    const payload = await pushed;
+    expect(payload.incident.reporter_id).toBeNull();
+    expect(payload.incident.reporter_name).toBeNull();
+    expect(payload.incident.reporter_id_str).toBeNull();
+  });
+
   it('pushes a dashboard status change back to the reporting student', async () => {
     const reporter = await open(studentToken);
     const responder = await open(securityToken);

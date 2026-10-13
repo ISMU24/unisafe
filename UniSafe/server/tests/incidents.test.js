@@ -121,6 +121,68 @@ describe('Incidents', () => {
     });
   });
 
+  describe('POST /api/incidents/report', () => {
+    const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+    const report = {
+      category: 'Security',
+      incident_type: 'Theft / Stolen Property',
+      title: 'Theft / Stolen Property',
+      description: 'A bag was taken from the library.',
+      latitude: -6.72,
+      longitude: 146.99,
+      location_text: 'Library, ground floor',
+      is_anonymous: true,
+    };
+
+    it('persists report type and images atomically and masks identity for responders', async () => {
+      const created = await request(app)
+        .post('/api/incidents/report')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .field('report', JSON.stringify(report))
+        .attach('photos', pngBytes, { filename: 'evidence.png', contentType: 'image/png' });
+
+      expect(created.status).toBe(201);
+      expect(created.body.incident_type).toBe(report.incident_type);
+      expect(created.body.reporter_id).toBe(studentUser.id);
+      expect(created.body.media).toHaveLength(1);
+      expect(created.body.media[0].file_url).toMatch(new RegExp(`/api/incidents/${created.body.id}/media/`));
+      expect(created.body.media[0]).not.toHaveProperty('file_data');
+
+      const responderView = await request(app)
+        .get(`/api/incidents/${created.body.id}`)
+        .set('Authorization', `Bearer ${securityToken}`);
+      expect(responderView.status).toBe(200);
+      expect(responderView.body.reporter_id).toBeNull();
+      expect(responderView.body.reporter_name).toBeNull();
+
+      const imageUrl = responderView.body.media[0].file_url;
+      const image = await request(app)
+        .get(imageUrl)
+        .set('Authorization', `Bearer ${securityToken}`);
+      expect(image.status).toBe(200);
+      expect(image.headers['content-type']).toBe('image/png');
+      expect(image.body).toEqual(pngBytes);
+
+      const medicalAccess = await request(app)
+        .get(imageUrl)
+        .set('Authorization', `Bearer ${medicalToken}`);
+      expect(medicalAccess.status).toBe(403);
+    });
+
+    it('rejects file content that does not match the declared image type', async () => {
+      const before = await db.prepare('SELECT COUNT(*) AS count FROM incidents').get();
+      const response = await request(app)
+        .post('/api/incidents/report')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .field('report', JSON.stringify(report))
+        .attach('photos', Buffer.from('not a png'), { filename: 'evidence.png', contentType: 'image/png' });
+      const after = await db.prepare('SELECT COUNT(*) AS count FROM incidents').get();
+
+      expect(response.status).toBe(415);
+      expect(after.count).toBe(before.count);
+    });
+  });
+
   describe('GET /api/incidents', () => {
     let incidentId;
 

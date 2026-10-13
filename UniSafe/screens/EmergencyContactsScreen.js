@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, Linking, Alert } from 'react-native';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../src/ThemeContext';
 
 const CONTACTS = [
@@ -9,8 +9,6 @@ const CONTACTS = [
   { id: '3', org: 'PNG Police', desc: 'Royal Papua New Guinea Constabulary', phone: '000', icon: 'local-police' },
   { id: '4', org: 'Fire Brigade', desc: 'PNG Fire Service emergency line', phone: '110', icon: 'local-fire-department' },
 ];
-
-const ICON_NAME_KEYS = { security: 'security', 'local-hospital': 'local-hospital', 'local-police': 'local-police', 'local-fire-department': 'local-fire-department' };
 
 const call = (phone) => {
   const url = `tel:${phone.replace(/\s/g, '')}`;
@@ -41,7 +39,7 @@ export default function EmergencyContactsScreen() {
         return (
           <View style={[styles.card, { backgroundColor: colors.surfaceCard, borderLeftColor: colors.primary, shadowColor: colors.shadow }]}>
             <View style={[styles.iconCircle, { backgroundColor: c + (isDark ? '30' : '15') }]}>
-            <MaterialCommunityIcons name={item.icon} size={26} color={c} />
+            <MaterialIcons name={item.icon} size={26} color={c} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.org, { color: colors.textPrimary }]}>{item.org}</Text>
@@ -49,7 +47,7 @@ export default function EmergencyContactsScreen() {
               <Text style={[styles.phone, { color: colors.primary }]}>{item.phone}</Text>
             </View>
             <TouchableOpacity style={[styles.callBtn, { backgroundColor: colors.primary, borderColor: colors.accent }]} onPress={() => call(item.phone)}>
-              <MaterialIcons name="phone" size={22} color={colors.accent} />
+              <MaterialIcons name="phone" size={22} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         );

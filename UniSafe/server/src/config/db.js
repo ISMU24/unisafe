@@ -309,6 +309,7 @@ async function execute(sql, params, kind) {
     const values = params.map(value => {
       if (value === undefined || value === null) return null;
       if (typeof value === 'boolean') return Number(value);
+      if (Buffer.isBuffer(value)) return value;
       // better-sqlite3 cannot bind plain objects; JSON/array columns are TEXT.
       if (typeof value === 'object') return JSON.stringify(value);
       return value;

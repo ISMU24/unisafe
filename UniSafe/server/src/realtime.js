@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import { verifyAccessToken } from './auth/tokens.js';
 import { getUserById } from './auth/database.js';
+import { presentIncident } from './auth/incident-access.js';
 
 const RESPONDER_ROLES = ['ADMIN', 'ICT_ADMIN', 'SECURITY', 'MEDICAL'];
 const RESPONDER_ROOM = 'responders';
@@ -87,7 +88,15 @@ function emitToUser(userId, event, payload) {
 
 export function emitIncidentUpdate(incident, action) {
   const envelope = { incident, action };
-  emitToResponders('incident-update', envelope);
+  if (io) {
+    const rooms = incident?.category === 'Ambulance'
+      ? ['role:ADMIN', 'role:ICT_ADMIN', 'role:MEDICAL']
+      : ['role:ADMIN', 'role:ICT_ADMIN', 'role:SECURITY'];
+    let audience = io;
+    rooms.forEach(room => { audience = audience.to(room); });
+    const responderIncident = presentIncident(incident, { userId: null, roles: [] });
+    audience.emit('incident-update', { incident: responderIncident, action });
+  }
   if (incident?.reporter_id) emitToUser(incident.reporter_id, 'incident-update', { ...envelope, scope: 'own' });
 }
 

@@ -29,8 +29,8 @@ export function triageDescription(description) {
 }
 
 export const URGENCY_META = {
-  Critical: { color: '#dc2626', bg: '#fef2f2', border: '#fca5a5', icon: '🔴' },
-  High:     { color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: '🟠' },
-  Medium:   { color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', icon: '🟡' },
-  Low:      { color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', icon: '🟢' },
+  Critical: { color: '#B91C1C', bg: '#FEF2F2', border: '#FECACA', icon: 'error-outline' },
+  High:     { color: '#C2410C', bg: '#FFF7ED', border: '#FED7AA', icon: 'warning-amber' },
+  Medium:   { color: '#344E6C', bg: '#F1F5F9', border: '#CBD5E1', icon: 'info-outline' },
+  Low:      { color: '#15803D', bg: '#F0FDF4', border: '#BBF7D0', icon: 'check-circle-outline' },
 };

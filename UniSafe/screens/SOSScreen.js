@@ -58,10 +58,10 @@ export default function SOSScreen({ navigation }) {
         <Text style={[s.desc, { color: colors.textMuted }]}>
           This sends an emergency request to Campus Security. Responder acknowledgement will be shown after receipt.
         </Text>
-        <TouchableOpacity style={[s.sosBtn, { backgroundColor: colors.sos, borderColor: colors.accent }]} onPress={sendSOS}>
-          <Text style={[s.sosBtnText, { color: colors.accent }]}>YES — SEND SOS</Text>
+        <TouchableOpacity style={[s.sosBtn, { backgroundColor: colors.sos, borderColor: colors.sos }]} onPress={sendSOS} accessibilityRole="button">
+          <Text style={s.sosBtnText}>YES — SEND SOS</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[s.cancelBtn, { backgroundColor: colors.surfaceAlt }]} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={[s.cancelBtn, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]} onPress={() => navigation.goBack()} accessibilityRole="button">
           <Text style={[s.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
         </TouchableOpacity>
       </View>
@@ -84,13 +84,13 @@ export default function SOSScreen({ navigation }) {
       <MaterialIcons name="cloud-off" size={64} color={colors.textMuted} style={{ marginBottom: 20 }} />
       <Text style={[s.title, { color: colors.textPrimary }]}>SOS Delivery Not Confirmed</Text>
       <Text style={[s.desc, { color: colors.textMuted }]}>{error} Do not assume help has been notified. Contact Campus Security directly using Emergency Contacts.</Text>
-      <TouchableOpacity style={[s.cancelBtn, { backgroundColor: colors.surfaceAlt, marginBottom: 12 }]} onPress={() => navigation.navigate('EmergencyContacts')}>
+      <TouchableOpacity style={[s.cancelBtn, { backgroundColor: colors.surfaceCard, borderColor: colors.border, marginBottom: 12 }]} onPress={() => navigation.navigate('EmergencyContacts')}>
         <Text style={[s.cancelText, { color: colors.textSecondary }]}>Emergency Contacts</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[s.sosBtn, { backgroundColor: colors.sos, borderColor: colors.accent }]} onPress={() => setStep('confirm')}>
-        <Text style={[s.sosBtnText, { color: colors.accent }]}>Retry</Text>
+      <TouchableOpacity style={[s.sosBtn, { backgroundColor: colors.sos, borderColor: colors.sos }]} onPress={() => setStep('confirm')}>
+        <Text style={s.sosBtnText}>Retry</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[s.cancelBtn, { backgroundColor: colors.surfaceAlt }]} onPress={() => navigation.goBack()}>
+      <TouchableOpacity style={[s.cancelBtn, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]} onPress={() => navigation.goBack()}>
         <Text style={[s.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
       </TouchableOpacity>
     </View>
@@ -99,10 +99,10 @@ export default function SOSScreen({ navigation }) {
 
 const s = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
-  title: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 },
+  title: { fontSize: 22, fontWeight: '700', textAlign: 'center', marginBottom: 12 },
   desc: { textAlign: 'center', lineHeight: 22, marginBottom: 32, fontSize: 14 },
-  sosBtn: { borderRadius: 12, paddingVertical: 16, width: '100%', alignItems: 'center', marginBottom: 12, borderWidth: 2 },
-  sosBtnText: { fontWeight: 'bold', fontSize: 16, letterSpacing: 1 },
-  cancelBtn: { borderRadius: 12, paddingVertical: 14, width: '100%', alignItems: 'center' },
+  sosBtn: { borderRadius: 12, minHeight: 52, paddingVertical: 14, width: '100%', alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderWidth: 1 },
+  sosBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15, letterSpacing: 0.2 },
+  cancelBtn: { borderRadius: 12, minHeight: 48, paddingVertical: 13, width: '100%', alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   cancelText: { fontWeight: '600', fontSize: 15 },
 });

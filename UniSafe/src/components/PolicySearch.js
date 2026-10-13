@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../ThemeContext';
 import { POLICY_CATEGORIES } from '../theme';
 import { POLICY_CATALOG, POLICIES_BY_FILENAME } from '../data/policyCatalog';
@@ -79,7 +80,7 @@ export default function PolicySearch({ onResultPress }) {
                 >
                   <Text style={[s.resultTitle, { color: colors.textPrimary }]} numberOfLines={1}>{item.title}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 10, marginRight: 4 }}>{meta?.icon || '📄'}</Text>
+                    <MaterialIcons name={meta?.icon || 'description'} size={14} color={colors.policy} style={{ marginRight: 4 }} />
                     <Text style={[s.resultCat, { color: colors.textMuted }]}>{meta?.label || item.folder}</Text>
                   </View>
                 </TouchableOpacity>

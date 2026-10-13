@@ -33,7 +33,7 @@ export function onSessionEnded(listener) { sessionListeners.add(listener); retur
 export class ApiError extends Error {
   constructor(message, status = 0) { super(message); this.name = 'ApiError'; this.status = status; }
 }
-async function send(method, endpoint, body, token) {
+async function send(method, endpoint, body, token, responseType = 'json') {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
@@ -43,7 +43,9 @@ async function send(method, endpoint, body, token) {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       method, headers, signal: controller.signal, body: body === undefined ? undefined : JSON.stringify(body),
     });
-    const data = await response.json().catch(() => ({}));
+    const data = response.ok && responseType === 'blob'
+      ? await response.blob()
+      : await response.json().catch(() => ({}));
     if (!response.ok) throw new ApiError(data.error || `Request failed (${response.status}).`, response.status);
     return data;
   } catch (error) {
@@ -70,14 +72,14 @@ export async function refreshAccessToken(token = getRefreshToken()) {
   })();
   return refreshFlight;
 }
-async function req(method, endpoint, body) {
+async function req(method, endpoint, body, responseType = 'json') {
   const token = getToken();
-  try { return await send(method, endpoint, body, token); }
+  try { return await send(method, endpoint, body, token, responseType); }
   catch (error) {
     if (error.status !== 401) throw error;
     // A concurrent request may already have rotated this session.
     if (!getToken() || getToken() === token) await refreshAccessToken();
-    try { return await send(method, endpoint, body, getToken()); }
+    try { return await send(method, endpoint, body, getToken(), responseType); }
     catch (retryError) { if (retryError.status === 401) clearSession(); throw retryError; }
   }
 }
@@ -114,9 +116,11 @@ function normalizeIncident(raw) {
   const submittedAt = raw.created_at || raw.submittedAt;
   return {
     ...raw, docId: raw.id, anonymous,
-    reporter: anonymous ? 'Anonymous' : (raw.reporter_name || raw.reporter || 'Unknown'),
+    reporter: anonymous ? 'Confidential to responders' : (raw.reporter_name || raw.reporter || 'Unknown'),
     userId: anonymous ? null : raw.reporter_id, assignee: raw.assignee_name || 'Unassigned',
-    type: raw.category, desc: raw.description || raw.title, loc: raw.location_text || 'Location not supplied',
+    type: raw.category, incidentType: raw.incident_type || '',
+    latitude: raw.latitude, longitude: raw.longitude,
+    desc: raw.description || raw.title, loc: raw.location_text || 'Location not supplied',
     submittedAt, createdAt: submittedAt, updatedAt: raw.updated_at,
     isSOS: raw.is_sos === true || raw.is_sos === 1,
     time: submittedAt ? new Date(submittedAt).toLocaleString('en-PG') : 'Unknown',
@@ -196,6 +200,9 @@ export function subscribeIncidents(cb, filters = {}, onError, interval = 5000) {
   return subscribe(() => getIncidents(filters), cb, onError, interval, LIVE_EVENTS);
 }
 export async function getIncident(id) { return normalizeIncident(await req('GET', `/api/incidents/${encodeURIComponent(id)}`)); }
+export function getIncidentMedia(id, mediaId) {
+  return req('GET', `/api/incidents/${encodeURIComponent(id)}/media/${encodeURIComponent(mediaId)}`, undefined, 'blob');
+}
 export async function addIncident(data) {
   const { id, docId, timeline, submitted_at, ...clean } = data;
   return normalizeIncident(await req('POST', '/api/incidents', clean));

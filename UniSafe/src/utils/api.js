@@ -65,10 +65,9 @@ async function refreshSession() {
 
 async function serverRequest(method, endpoint, body, auth = true, retry = true) {
   if (!REST_BASE) throw new Error('This app has a missing or insecure server address. Contact the app administrator for an updated version.');
-  const headers = {
-    'Content-Type': 'application/json',
-    'ngrok-skip-browser-warning': 'true',
-  };
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+  const headers = { 'ngrok-skip-browser-warning': 'true' };
+  if (!isFormData) headers['Content-Type'] = 'application/json';
   const version = sessionVersion;
   let usedToken = '';
   if (auth) {
@@ -83,7 +82,7 @@ async function serverRequest(method, endpoint, body, auth = true, retry = true) 
     res = await fetch(`${REST_BASE}${endpoint}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
       signal: controller.signal,
     });
     data = await res.json().catch(() => ({}));
@@ -146,6 +145,29 @@ export const api = {
       is_sos: payload.is_sos ?? false,
     };
     return serverRequest('POST', '/api/incidents', body);
+  },
+  submitIncident: async (payload) => {
+    const report = {
+      category: payload.category,
+      incident_type: payload.incidentType,
+      title: payload.incidentType,
+      description: payload.description,
+      latitude: payload.latitude,
+      longitude: payload.longitude,
+      location_text: payload.locationText,
+      priority: payload.priority || 'Medium',
+      is_anonymous: payload.confidentialToResponders === true,
+    };
+    const body = new FormData();
+    body.append('report', JSON.stringify(report));
+    (payload.photos || []).forEach(photo => {
+      body.append('photos', {
+        uri: photo.uri,
+        name: photo.name,
+        type: photo.type,
+      });
+    });
+    return serverRequest('POST', '/api/incidents/report', body);
   },
   getIncidents: (filters = {}) => {
     const params = new URLSearchParams();

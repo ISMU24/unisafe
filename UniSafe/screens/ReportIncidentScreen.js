@@ -1,394 +1,716 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, Alert, Image, ActivityIndicator, Platform, KeyboardAvoidingView, useWindowDimensions } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform,
+  ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { radius, categoryMeta } from '../src/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MaterialIcons } from '@expo/vector-icons';
+import { controls, radius, spacing, typography } from '../src/theme';
 import { useTheme } from '../src/ThemeContext';
 import { triageDescription, URGENCY_META } from '../src/utils/aiTriage';
 import { checkDuplicate } from '../src/utils/duplicateDetector';
-import CategoryBadge from '../src/components/CategoryBadge';
 import { api } from '../src/utils/api';
+import { INCIDENT_CATEGORIES, getIncidentCategory } from '../src/data/incidentTypes';
 
-const STEPS = ['Category', 'Details', 'Location', 'Review'];
+const MAX_DESCRIPTION_LENGTH = 2000;
+const MAX_LOCATION_LENGTH = 512;
+const MAX_IMAGES = 3;
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
-const INIT = { category: '', title: '', description: '', anonymous: false, location: null, locationText: '', photo: null };
+const INITIAL_FORM = {
+  category: '',
+  incidentType: '',
+  description: '',
+  location: null,
+  locationText: '',
+  photos: [],
+  reportingPreference: '',
+};
 
-function StepDots({ current, colors }) {
-  const { width: winW } = useWindowDimensions();
-  const showLabels = winW >= 380;
+function DropdownModal({ visible, title, options, selected, colors, onSelect, onClose }) {
   return (
-    <View style={s.dots}>
-      {STEPS.map((step, i) => (
-        <React.Fragment key={step}>
-          <View style={s.dotWrap}>
-            <View style={[s.dot, { backgroundColor: colors.border }, i < current && { backgroundColor: colors.ambulance }, i === current && { backgroundColor: colors.primary }]}>
-              <Text style={[s.dotNum, { color: colors.textMuted }, i <= current && { color: '#fff' }]}>{i < current ? '✓' : i + 1}</Text>
-            </View>
-            {showLabels && (
-              <Text style={[s.dotLabel, { color: colors.textMuted }, i === current && { color: colors.primary, fontWeight: '700' }]} numberOfLines={1}>{step}</Text>
-            )}
-          </View>
-          {i < STEPS.length - 1 && <View style={[s.dotLine, { backgroundColor: colors.border }, i < current && { backgroundColor: colors.ambulance }]} />}
-        </React.Fragment>
-      ))}
-    </View>
-  );
-}
-
-function StepCategory({ form, setForm, triage, colors }) {
-  const DESCS = { Security: 'Theft, assault, suspicious activity', Fire: 'Fire, smoke, gas leak', Ambulance: 'Medical emergency, injury', Other: 'Vandalism, noise, other issues' };
-  return (
-    <ScrollView style={s.stepScroll} contentContainerStyle={s.stepContent}>
-      {triage && (
-        <View style={[s.triageBanner, { backgroundColor: URGENCY_META[triage.urgency].bg, borderColor: URGENCY_META[triage.urgency].border }]}>
-          <Text style={[s.triageTitle, { color: colors.textPrimary }]}>🤖 AI Suggestion — {triage.confidence}% confidence</Text>
-          <Text style={[s.triageSub, { color: URGENCY_META[triage.urgency].color }]}>Category: {triage.category} · {URGENCY_META[triage.urgency].icon} {triage.urgency}</Text>
-          <TouchableOpacity style={[s.applyBtn, { backgroundColor: URGENCY_META[triage.urgency].color }]} onPress={() => setForm(f => ({ ...f, category: triage.category }))}>
-            <Text style={s.applyBtnText}>Apply suggestion</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      <Text style={[s.stepPrompt, { color: colors.textSecondary }]}>What type of incident are you reporting?</Text>
-      {Object.entries(categoryMeta).map(([key, meta]) => (
-        <TouchableOpacity
-          key={key}
-          style={[s.catCard, { borderColor: colors.border, backgroundColor: colors.surfaceCard }, form.category === key && { borderColor: meta.color, backgroundColor: meta.color + (colors.mode === 'dark' ? '25' : '12') }]}
-          onPress={() => setForm(f => ({ ...f, category: key }))}
-          activeOpacity={0.8}
-        >
-          <Text style={s.catIcon}>{meta.icon}</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[s.catLabel, { color: meta.color }]}>{meta.label}</Text>
-            <Text style={[s.catDesc, { color: colors.textSecondary }]}>{DESCS[key]}</Text>
-          </View>
-          {form.category === key && <Text style={[s.catCheck, { color: meta.color }]}>✓</Text>}
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-}
-
-function StepDetails({ form, setForm, triage, duplicate, colors }) {
-  return (
-    <ScrollView style={s.stepScroll} contentContainerStyle={s.stepContent} keyboardShouldPersistTaps="handled">
-      {duplicate && (
-        <View style={s.dupWarn}>
-          <Text style={s.dupTitle}>⚠️ Possible duplicate — {duplicate.clusterSize} similar reports in the last 15 min</Text>
-          <Text style={s.dupBody}>"{duplicate.firstReport.description.slice(0, 80)}…"</Text>
-          <Text style={s.dupNote}>Your report will be clustered with existing ones.</Text>
-        </View>
-      )}
-      {triage && (
-        <View style={[s.triageInline, { backgroundColor: URGENCY_META[triage.urgency].bg, borderColor: URGENCY_META[triage.urgency].border }]}>
-          <Text style={[s.triageInlineText, { color: URGENCY_META[triage.urgency].color }]}>🤖 AI: {triage.category} · {URGENCY_META[triage.urgency].icon} {triage.urgency} ({triage.confidence}%)</Text>
-        </View>
-      )}
-      <Text style={[s.fieldLabel, { color: colors.textSecondary }]}>Incident Title *</Text>
-      <TextInput style={[s.input, { borderColor: colors.border, color: colors.textPrimary, backgroundColor: colors.surfaceCard }]} placeholder="Brief title (e.g. Broken fence near Block A)" value={form.title} onChangeText={v => setForm(f => ({ ...f, title: v }))} placeholderTextColor={colors.textMuted} />
-
-      <Text style={[s.fieldLabel, { color: colors.textSecondary }]}>Description * <Text style={[s.fieldHint, { color: colors.textMuted }]}>(AI triage reads this as you type)</Text></Text>
-      <TextInput style={[s.input, s.textarea, { borderColor: colors.border, color: colors.textPrimary, backgroundColor: colors.surfaceCard }]} placeholder="Describe what happened, when, and any relevant details…" value={form.description} onChangeText={v => setForm(f => ({ ...f, description: v }))} multiline numberOfLines={5} textAlignVertical="top" placeholderTextColor={colors.textMuted} />
-
-      <View style={[s.anonBox, { backgroundColor: form.anonymous ? colors.surfaceGold : (colors.mode === 'dark' ? '#1B3320' : '#f0fdf4'), borderColor: form.anonymous ? colors.accent : (colors.mode === 'dark' ? '#2E5D3A' : '#bbf7d0') }]}>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.anonTitle, { color: colors.textPrimary }]}>{form.anonymous ? '🕵️ Anonymous Report' : '👤 Identified Report'}</Text>
-          <Text style={[s.anonSub, { color: colors.textSecondary }]}>{form.anonymous ? 'Your identity will not be shared.' : 'Security may contact you for follow-up.'}</Text>
-        </View>
-        <Switch value={form.anonymous} onValueChange={v => setForm(f => ({ ...f, anonymous: v }))} trackColor={{ false: colors.ambulance, true: colors.other }} thumbColor="#fff" />
-      </View>
-    </ScrollView>
-  );
-}
-
-function StepLocation({ form, setForm, colors }) {
-  const [locLoading, setLocLoading] = useState(false);
-  const capture = async () => {
-    setLocLoading(true);
-    try {
-      if (Platform.OS !== 'web') {
-        const Location = await import('expo-location');
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-          setForm(f => ({ ...f, location: { lat: loc.coords.latitude, lng: loc.coords.longitude } }));
-          setLocLoading(false);
-          return;
-        }
-        Alert.alert('Permission Denied', 'Location permission is required.');
-      } else {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            pos => { setForm(f => ({ ...f, location: { lat: pos.coords.latitude, lng: pos.coords.longitude } })); setLocLoading(false); },
-            () => { Alert.alert('Error', 'Could not get location.'); setLocLoading(false); }
-          );
-          return;
-        }
-        Alert.alert('Error', 'Geolocation not supported.');
-      }
-    } catch (e) {
-      Alert.alert('Error', 'Could not get location.');
-    }
-    setLocLoading(false);
-  };
-
-  const attachPhoto = async () => {
-    if (Platform.OS === 'web') {
-      const input = document.createElement('input');
-      input.type = 'file'; input.accept = 'image/*';
-      input.onchange = e => { const file = e.target.files[0]; if (file) setForm(f => ({ ...f, photo: URL.createObjectURL(file) })); };
-      input.click();
-      return;
-    }
-    try {
-      const ImagePicker = await import('expo-image-picker');
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
-      if (!result.canceled) setForm(f => ({ ...f, photo: result.assets[0].uri }));
-    } catch {}
-  };
-
-  return (
-    <ScrollView style={s.stepScroll} contentContainerStyle={s.stepContent}>
-      <View style={[s.locCard, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
-        <Text style={[s.locTitle, { color: colors.textPrimary }]}>📍 GPS Location</Text>
-        {form.location ? (
-          <View style={[s.locCaptured, { backgroundColor: colors.mode === 'dark' ? '#1B3320' : '#f0fdf4' }]}>
-            <Text style={[s.locCapturedText, { color: colors.ambulance }]}>✓ Location captured</Text>
-            <Text style={[s.locCoords, { color: colors.textSecondary }]}>{form.location.lat.toFixed(4)}, {form.location.lng.toFixed(4)}</Text>
-          </View>
-        ) : (
-          <TouchableOpacity style={[s.locBtn, { backgroundColor: colors.primaryDark }, locLoading && { opacity: 0.6 }]} onPress={capture} disabled={locLoading}>
-            {locLoading ? <ActivityIndicator size="small" color={colors.accent} /> : <Text style={[s.locBtnText, { color: colors.accent }]}>📍 Auto-capture GPS Location</Text>}
-          </TouchableOpacity>
-        )}
-        <Text style={[s.locHint, { color: colors.textMuted }]}>Coordinates help security respond faster.</Text>
-      </View>
-
-      <View style={[s.locCard, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
-        <Text style={[s.locTitle, { color: colors.textPrimary }]}>📝 Location Description <Text style={[s.fieldHint, { color: colors.textMuted }]}>(optional)</Text></Text>
-        <TextInput style={[s.input, { borderColor: colors.border, color: colors.textPrimary, backgroundColor: colors.surfaceCard }]} placeholder="e.g. Near Library entrance" value={form.locationText} onChangeText={v => setForm(f => ({ ...f, locationText: v }))} placeholderTextColor={colors.textMuted} />
-      </View>
-
-      <View style={[s.locCard, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
-        <Text style={[s.locTitle, { color: colors.textPrimary }]}>📷 Photo Evidence <Text style={[s.fieldHint, { color: colors.textMuted }]}>(optional)</Text></Text>
-        {form.photo ? (
-          <View style={[s.photoRow, { backgroundColor: colors.mode === 'dark' ? '#1B3320' : '#f0fdf4' }]}>
-            {form.photo.startsWith('http') || form.photo.startsWith('blob:') || form.photo.startsWith('file:') ? (
-              <Image source={{ uri: form.photo }} style={s.photoThumb} />
-            ) : null}
-            <TouchableOpacity onPress={() => setForm(f => ({ ...f, photo: null }))}>
-              <Text style={{ color: colors.fire, fontSize: 18 }}>✕ Remove</Text>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={[styles.modalScrim, { backgroundColor: colors.modalScrim }]}>
+        <View style={[styles.dropdownModal, { backgroundColor: colors.surfaceCard }]}>
+          <View style={styles.modalHeading}>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{title}</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close options"
+              style={styles.iconButton}
+            >
+              <MaterialIcons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
-        ) : (
-          <TouchableOpacity style={[s.photoDash, { borderColor: colors.primary }]} onPress={attachPhoto}>
-            <Text style={[s.photoDashText, { color: colors.primary }]}>📷 Attach Photo</Text>
-          </TouchableOpacity>
-        )}
+          <ScrollView keyboardShouldPersistTaps="handled">
+            {options.map(option => {
+              const active = option.value === selected;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.dropdownOption, { borderBottomColor: colors.border }]}
+                  onPress={() => onSelect(option.value)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  activeOpacity={0.75}
+                >
+                  {!!option.icon && <MaterialIcons name={option.icon} size={22} color={option.color} />}
+                  <Text style={[styles.dropdownOptionText, { color: colors.textPrimary }]}>{option.label}</Text>
+                  {active && <MaterialIcons name="check" size={21} color={colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
       </View>
-    </ScrollView>
+    </Modal>
   );
 }
 
-function StepReview({ form, incidentId, triage, duplicate, colors }) {
-  const meta = categoryMeta[form.category];
+function FieldError({ children }) {
+  const { colors } = useTheme();
+  if (!children) return null;
+  return <Text accessibilityRole="alert" style={[styles.fieldError, { color: colors.sos }]}>{children}</Text>;
+}
+
+function FormLabel({ children, colors }) {
+  return <Text style={[styles.label, { color: colors.textPrimary }]}>{children}</Text>;
+}
+
+function SelectButton({ label, placeholder, icon, color, colors, onPress, accessibilityLabel }) {
   return (
-    <ScrollView style={s.stepScroll} contentContainerStyle={s.stepContent}>
-      <View style={[s.reviewCard, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
-        <View style={[s.reviewHeader, { backgroundColor: meta?.color || colors.primary }]}>
-          <Text style={s.reviewHeaderIcon}>{meta?.icon}</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={s.reviewHeaderTitle}>{form.category} Incident</Text>
-            <Text style={s.reviewHeaderId}>Draft: {incidentId}</Text>
-          </View>
-          {triage && (
-            <View style={s.urgencyPill}>
-              <Text style={s.urgencyPillText}>{URGENCY_META[triage.urgency].icon} {triage.urgency}</Text>
-            </View>
-          )}
-        </View>
-        <View style={s.reviewBody}>
-          <View style={[s.reviewRow, { borderBottomColor: colors.border }]}><Text style={[s.reviewRowLabel, { color: colors.textMuted }]}>TITLE</Text><Text style={[s.reviewRowValue, { color: colors.textPrimary }]}>{form.title}</Text></View>
-          <View style={[s.reviewRow, { borderBottomColor: colors.border }]}><Text style={[s.reviewRowLabel, { color: colors.textMuted }]}>DESCRIPTION</Text><Text style={[s.reviewRowValue, { color: colors.textPrimary }]}>{form.description}</Text></View>
-          <View style={[s.reviewRow, { borderBottomColor: colors.border }]}><Text style={[s.reviewRowLabel, { color: colors.textMuted }]}>IDENTITY</Text><Text style={[s.reviewRowValue, { color: colors.textPrimary }]}>{form.anonymous ? '🕵️ Anonymous' : '👤 Identified'}</Text></View>
-          <View style={[s.reviewRow, { borderBottomColor: colors.border }]}><Text style={[s.reviewRowLabel, { color: colors.textMuted }]}>LOCATION</Text><Text style={[s.reviewRowValue, { color: colors.textPrimary }]}>{form.location ? `${form.location.lat.toFixed(4)}, ${form.location.lng.toFixed(4)}` : form.locationText || 'Not captured'}</Text></View>
-          <View style={[s.reviewRow, { borderBottomColor: colors.border, borderBottomWidth: 0 }]}><Text style={[s.reviewRowLabel, { color: colors.textMuted }]}>PHOTO</Text><Text style={[s.reviewRowValue, { color: colors.textPrimary }]}>{form.photo ? 'Preview only. Photo uploads are not available yet.' : 'No photo selected'}</Text></View>
-        </View>
-      </View>
-      {duplicate && (
-        <View style={s.dupWarn}>
-          <Text style={s.dupTitle}>⚠️ Will be merged with {duplicate.clusterSize - 1} similar report(s).</Text>
-        </View>
-      )}
-      <Text style={[s.reviewNote, { color: colors.textMuted }]}>Review before submitting. A reference will be shown when the server confirms receipt.</Text>
-    </ScrollView>
+    <TouchableOpacity
+      style={[styles.selectButton, { borderColor: colors.border, backgroundColor: colors.surfaceCard }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ expanded: false }}
+      activeOpacity={0.75}
+    >
+      {icon && <MaterialIcons name={icon} size={21} color={color || colors.textMuted} />}
+      <Text style={[styles.selectText, { color: label ? colors.textPrimary : colors.textMuted }]} numberOfLines={2}>
+        {label || placeholder}
+      </Text>
+      <MaterialIcons name="keyboard-arrow-down" size={24} color={colors.textMuted} />
+    </TouchableOpacity>
   );
 }
 
 export default function ReportIncidentScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { width: winW } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const { colors } = useTheme();
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState(INIT);
-  const [submitted, setSubmitted] = useState(false);
-  const [submittedId, setSubmittedId] = useState(null);
+  const [form, setForm] = useState(INITIAL_FORM);
+  const [errors, setErrors] = useState({});
+  const [openDropdown, setOpenDropdown] = useState('');
+  const [gpsState, setGpsState] = useState('idle');
+  const [gpsError, setGpsError] = useState('');
   const [triage, setTriage] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const incidentRef = useRef(`INC-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`);
+  const [profile, setProfile] = useState(null);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submittedId, setSubmittedId] = useState(null);
+  const submittingRef = useRef(false);
+
+  const category = getIncidentCategory(form.category);
+  const typeOptions = category
+    ? category.types.map(type => ({ value: type, label: type }))
+    : [];
 
   useEffect(() => {
-    const result = triageDescription(form.description);
-    setTriage(result);
-    const cat = form.category || result?.category;
-    setDuplicate(cat && form.description.trim().length >= 10 ? checkDuplicate(form.description, cat) : null);
-  }, [form.description, form.category]);
-
-  const canNext = () => {
-    if (step === 0) return !!form.category;
-    if (step === 1) return form.title.trim() && form.description.trim();
-    return true;
-  };
-
-  const handleSubmit = async () => {
-    if (loading) return;
-    setLoading(true);
-    try {
-      const result = await api.createIncident({
-        category: form.category,
-        title: form.title,
-        description: form.description,
-        latitude: form.location?.lat ?? null,
-        longitude: form.location?.lng ?? null,
-        location_text: form.locationText || null,
-        priority: triage?.urgency || 'Medium',
-        is_anonymous: form.anonymous ?? false,
+    let active = true;
+    AsyncStorage.getItem('user')
+      .then(value => {
+        if (active && value) setProfile(JSON.parse(value));
+      })
+      .catch(() => {
+        if (active) setProfile(null);
       });
-      if (!result?.id) throw new Error('The server did not confirm your report.');
-      setSubmittedId(result.id);
-      setSubmitted(true);
-    } catch (error) {
-      Alert.alert('Report not confirmed', `${error.message} Your form is still here. Check My Reports before retrying to avoid a duplicate.`);
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => { active = false; };
+  }, []);
 
-  if (submitted) {
+  useEffect(() => {
+    const suggestion = triageDescription(form.description);
+    setTriage(suggestion);
+    setDuplicate(
+      form.category && form.description.trim().length >= 10
+        ? checkDuplicate(form.description, form.category)
+        : null,
+    );
+  }, [form.category, form.description]);
+
+  function updateForm(field, value) {
+    setForm(current => ({ ...current, [field]: value }));
+    setErrors(current => ({ ...current, [field]: '' }));
+  }
+
+  function selectCategory(value) {
+    setForm(current => ({ ...current, category: value, incidentType: '' }));
+    setErrors(current => ({ ...current, category: '', incidentType: '' }));
+    setOpenDropdown('');
+  }
+
+  function validate() {
+    const nextErrors = {};
+    if (!form.category) nextErrors.category = 'Select an incident category.';
+    if (!form.incidentType) nextErrors.incidentType = 'Select the type of incident.';
+    if (!form.description.trim()) nextErrors.description = 'Describe what happened.';
+    if (form.description.length > MAX_DESCRIPTION_LENGTH) {
+      nextErrors.description = `Use ${MAX_DESCRIPTION_LENGTH} characters or fewer.`;
+    }
+    if (!form.locationText.trim()) nextErrors.locationText = 'Enter a campus location description.';
+    if (form.locationText.length > MAX_LOCATION_LENGTH) {
+      nextErrors.locationText = `Use ${MAX_LOCATION_LENGTH} characters or fewer.`;
+    }
+    if (!form.reportingPreference) nextErrors.reportingPreference = 'Choose a reporting preference.';
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }
+
+  async function captureLocation() {
+    setGpsState('loading');
+    setGpsError('');
+    try {
+      const Location = await import('expo-location');
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        setGpsState('error');
+        setGpsError('Location permission was not granted. You can continue by entering the incident location below.');
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      setForm(current => ({
+        ...current,
+        location: {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        },
+      }));
+      setGpsState('success');
+    } catch {
+      setGpsState('error');
+      setGpsError('Could not get the current GPS position. You can continue by entering the incident location below.');
+    }
+  }
+
+  async function choosePhotos(source) {
+    if (form.photos.length >= MAX_IMAGES) {
+      Alert.alert('Photo limit reached', `You can attach up to ${MAX_IMAGES} images.`);
+      return;
+    }
+    try {
+      const ImagePicker = await import('expo-image-picker');
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (permission.status !== 'granted') {
+          Alert.alert('Camera permission needed', 'Allow camera access to take an incident photo, or choose an image from your gallery.');
+          return;
+        }
+      }
+
+      const pickerOptions = {
+        mediaTypes: ['images'],
+        quality: 0.7,
+        exif: false,
+      };
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync(pickerOptions)
+        : await ImagePicker.launchImageLibraryAsync({
+          ...pickerOptions,
+          allowsMultipleSelection: true,
+          selectionLimit: MAX_IMAGES - form.photos.length,
+        });
+      if (result.canceled) return;
+
+      const selected = (result.assets || []).slice(0, MAX_IMAGES - form.photos.length);
+      const accepted = [];
+      for (const [index, asset] of selected.entries()) {
+        const name = asset.fileName || asset.uri.split(/[\\/]/).pop() || `evidence-${Date.now()}-${index}`;
+        const extension = name.split('.').pop()?.toLowerCase();
+        const mimeType = asset.mimeType || (extension === 'png' ? 'image/png' : extension === 'jpg' || extension === 'jpeg' ? 'image/jpeg' : '');
+        if (!['image/jpeg', 'image/png'].includes(mimeType)) {
+          Alert.alert('Unsupported image', 'Choose a JPEG or PNG image. Other image formats are not uploaded.');
+          continue;
+        }
+        if (asset.fileSize > MAX_IMAGE_BYTES) {
+          Alert.alert('Image is too large', 'Each image must be 2 MB or smaller. Choose a smaller image or retake it.');
+          continue;
+        }
+        accepted.push({
+          uri: asset.uri,
+          name: `incident-evidence-${Date.now()}-${index}.${mimeType === 'image/png' ? 'png' : 'jpg'}`,
+          type: mimeType,
+          fileSize: asset.fileSize,
+        });
+      }
+      if (accepted.length) {
+        setForm(current => ({ ...current, photos: [...current.photos, ...accepted].slice(0, MAX_IMAGES) }));
+      }
+    } catch {
+      Alert.alert('Photo unavailable', 'The photo could not be selected. Your report form is unchanged.');
+    }
+  }
+
+  function confirmSubmit() {
+    if (submittingRef.current || !validate()) return;
+    setConfirmVisible(true);
+  }
+
+  async function submitReport() {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    setConfirmVisible(false);
+    try {
+      const result = await api.submitIncident({
+        category: form.category,
+        incidentType: form.incidentType,
+        description: form.description.trim(),
+        latitude: form.location?.latitude,
+        longitude: form.location?.longitude,
+        locationText: form.locationText.trim(),
+        priority: triage?.urgency || 'Medium',
+        confidentialToResponders: form.reportingPreference === 'confidential',
+        photos: form.photos,
+      });
+      if (!result?.id) throw new Error('The server did not confirm receipt of this report.');
+      setSubmittedId(result.id);
+    } catch (error) {
+      Alert.alert(
+        'Report not confirmed',
+        `${error.message || 'The server could not receive the report.'} Your entries are still here. Check My Reports before trying again to avoid creating a duplicate.`,
+      );
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
+  }
+
+  function removePhoto(index) {
+    setForm(current => ({ ...current, photos: current.photos.filter((_, photoIndex) => photoIndex !== index) }));
+  }
+
+  if (submittedId) {
     return (
-      <View style={[s.successScreen, { backgroundColor: colors.surface }]}>
-        <Text style={{ fontSize: 60, marginBottom: 16 }}>✅</Text>
-        <Text style={[s.successTitle, { color: colors.textPrimary }]}>Report Submitted</Text>
-        <Text style={[s.successSub, { color: colors.textSecondary }]}>Your report has been received. Track its status in My Reports.{form.photo ? '\nYour selected photo was not uploaded.' : ''}</Text>
-        {triage && (
-          <View style={[s.triageInline, { backgroundColor: URGENCY_META[triage.urgency].bg, borderColor: URGENCY_META[triage.urgency].border, marginBottom: 10 }]}>
-            <Text style={[s.triageInlineText, { color: URGENCY_META[triage.urgency].color }]}>{URGENCY_META[triage.urgency].icon} Flagged as {triage.urgency} urgency</Text>
-          </View>
-        )}
-        {duplicate && <Text style={[s.successSub, { color: colors.textSecondary }]}>Merged with {duplicate.clusterSize - 1} similar report(s).</Text>}
-        <Text style={[s.incidentId, { color: colors.primary, backgroundColor: colors.surfaceGold, borderColor: colors.accent }]}>{submittedId}</Text>
-        <TouchableOpacity style={[s.backHomeBtn, { backgroundColor: colors.primary, borderColor: colors.accent }]} onPress={() => navigation.navigate('Home')}>
-          <Text style={[s.backHomeBtnText, { color: colors.textOnGold }]}>Back to Home</Text>
+      <View style={[styles.successScreen, { backgroundColor: colors.surface, paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
+        <MaterialIcons name="check-circle" size={68} color={colors.ambulance} />
+        <Text style={[styles.successTitle, { color: colors.textPrimary }]}>Report submitted</Text>
+        <Text style={[styles.successText, { color: colors.textSecondary }]}>
+          Campus authorities have received your report. Keep this reference number to follow its status.
+        </Text>
+        <Text selectable style={[styles.reference, { color: colors.primary, backgroundColor: colors.surfaceAlt }]}>{submittedId}</Text>
+        <TouchableOpacity
+          style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+          onPress={() => navigation.navigate('MyReports')}
+          accessibilityRole="button"
+        >
+          <Text style={styles.primaryButtonText}>View My Reports</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate('Home')}>
+          <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Back to Home</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
+  const inputStyle = [
+    styles.input,
+    { borderColor: colors.border, backgroundColor: colors.surfaceCard, color: colors.textPrimary },
+  ];
+  const emergency = form.category === 'Fire' || form.category === 'Ambulance';
+
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.surface }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[s.dotsWrap, { backgroundColor: colors.surfaceCard, borderBottomColor: colors.border, paddingTop: Math.max(insets.top, 8) + 4 }]}>
-        <StepDots current={step} colors={colors} />
-      </View>
-      {step === 0 && <StepCategory form={form} setForm={setForm} triage={triage} colors={colors} />}
-      {step === 1 && <StepDetails form={form} setForm={setForm} triage={triage} duplicate={duplicate} colors={colors} />}
-      {step === 2 && <StepLocation form={form} setForm={setForm} colors={colors} />}
-      {step === 3 && <StepReview form={form} incidentId={incidentRef.current} triage={triage} duplicate={duplicate} colors={colors} />}
-      {loading && <Text accessibilityRole="alert" style={[s.reviewNote, { color: colors.textMuted }]}>Sending report. The server may take 30-60 seconds to wake up; please wait for confirmation.</Text>}
-      <View style={[s.footer, { backgroundColor: colors.surfaceCard, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
-        {step > 0 && (
-          <TouchableOpacity style={[s.backBtn, { backgroundColor: colors.surfaceAlt }]} onPress={() => setStep(p => p - 1)} activeOpacity={0.8}>
-            <Text style={[s.backBtnText, { color: colors.textSecondary }]}>← Back</Text>
+    <KeyboardAvoidingView
+      style={[styles.screen, { backgroundColor: colors.surface }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 84 : 0}
+    >
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 20) + 18 }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={[styles.heading, { color: colors.primary }]}>Report an Incident</Text>
+        <Text style={[styles.intro, { color: colors.textSecondary }]}>
+          Select the type of incident and provide the information needed to help campus authorities respond.
+        </Text>
+
+        <FormLabel colors={colors}>Incident Category *</FormLabel>
+        <SelectButton
+          label={category?.label}
+          placeholder="Select incident category"
+          icon={category?.icon}
+          color={category?.color}
+          colors={colors}
+          onPress={() => setOpenDropdown('category')}
+          accessibilityLabel="Select incident category"
+        />
+        <FieldError>{errors.category}</FieldError>
+
+        {!!category && (
+          <>
+            <FormLabel colors={colors}>Type of Incident *</FormLabel>
+            <SelectButton
+              label={form.incidentType}
+              placeholder="Select incident type"
+              colors={colors}
+              onPress={() => setOpenDropdown('type')}
+              accessibilityLabel="Select type of incident"
+            />
+            <FieldError>{errors.incidentType}</FieldError>
+
+            {!!form.incidentType && (
+              <>
+                <FormLabel colors={colors}>Incident Description *</FormLabel>
+                <TextInput
+                  style={[...inputStyle, styles.descriptionInput]}
+                  value={form.description}
+                  onChangeText={value => updateForm('description', value.slice(0, MAX_DESCRIPTION_LENGTH))}
+                  placeholder="Describe what happened, when it happened, who or what was involved, and any immediate danger."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  maxLength={MAX_DESCRIPTION_LENGTH}
+                  textAlignVertical="top"
+                  accessibilityLabel="Incident description"
+                />
+                <Text style={[styles.counter, { color: colors.textMuted }]}>
+                  {form.description.length}/{MAX_DESCRIPTION_LENGTH}
+                </Text>
+                <FieldError>{errors.description}</FieldError>
+                {triage && (
+                  <View style={[styles.suggestion, { borderColor: URGENCY_META[triage.urgency].border, backgroundColor: URGENCY_META[triage.urgency].bg }]}>
+                    <Text style={[styles.suggestionText, { color: URGENCY_META[triage.urgency].color }]}>
+                      Suggested urgency: {triage.urgency}. You can change this later with campus responders.
+                    </Text>
+                  </View>
+                )}
+                {duplicate && (
+                  <View style={[styles.duplicateNotice, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
+                    <MaterialIcons name="info-outline" size={18} color={colors.fire} />
+                    <Text style={[styles.duplicateText, { color: colors.textSecondary }]}>
+                      This description may be similar to another recent report. You can still submit if it describes a separate incident.
+                    </Text>
+                  </View>
+                )}
+
+                <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Incident Location</Text>
+                <FormLabel colors={colors}>GPS Location</FormLabel>
+                <Text style={[styles.helper, { color: colors.textSecondary }]}>
+                  This is the reporting device’s current position, which may differ from where the incident happened. Location is requested only when you tap the button.
+                </Text>
+                <TouchableOpacity
+                  style={[styles.gpsButton, { backgroundColor: colors.primary }, gpsState === 'loading' && styles.buttonDisabled]}
+                  onPress={captureLocation}
+                  disabled={gpsState === 'loading'}
+                  accessibilityRole="button"
+                >
+                  {gpsState === 'loading'
+                    ? <ActivityIndicator color="#fff" />
+                    : <MaterialIcons name="my-location" size={20} color="#fff" />}
+                  <Text style={styles.gpsButtonText}>{form.location ? 'Refresh GPS Location' : 'Get Current Location'}</Text>
+                </TouchableOpacity>
+                {!!gpsError && <FieldError>{gpsError}</FieldError>}
+                {!!form.location && (
+                  <View style={[styles.gpsResult, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
+                    <MaterialIcons name="location-on" size={19} color={colors.ambulance} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.gpsResultTitle, { color: colors.textPrimary }]}>Reporting device location</Text>
+                      <Text style={[styles.gpsCoordinates, { color: colors.textSecondary }]}>
+                        {form.location.latitude.toFixed(6)}, {form.location.longitude.toFixed(6)}
+                      </Text>
+                      {Number.isFinite(form.location.accuracy) && (
+                        <Text style={[styles.gpsAccuracy, { color: colors.textMuted }]}>Accuracy ±{Math.round(form.location.accuracy)} m</Text>
+                      )}
+                    </View>
+                  </View>
+                )}
+                <FormLabel colors={colors}>Location Description *</FormLabel>
+                <TextInput
+                  style={inputStyle}
+                  value={form.locationText}
+                  onChangeText={value => updateForm('locationText', value.slice(0, MAX_LOCATION_LENGTH))}
+                  placeholder="Example: DODL Hall, Block B, second floor, near the staircase."
+                  placeholderTextColor={colors.textMuted}
+                  maxLength={MAX_LOCATION_LENGTH}
+                  accessibilityLabel="Incident location description"
+                />
+                <FieldError>{errors.locationText}</FieldError>
+
+                <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Photo Evidence (Optional)</Text>
+                <Text style={[styles.helper, { color: colors.textSecondary }]}>
+                  Add up to 3 JPEG or PNG images. Each image must be 2 MB or smaller. Photos are stored with this report in UniSafe’s PostgreSQL database.
+                </Text>
+                <View style={[styles.photoActions, width < 380 && styles.photoActionsNarrow]}>
+                  <TouchableOpacity
+                    style={[styles.photoAction, { borderColor: colors.border, backgroundColor: colors.surfaceCard }]}
+                    onPress={() => choosePhotos('camera')}
+                    disabled={form.photos.length >= MAX_IMAGES}
+                    accessibilityRole="button"
+                  >
+                    <MaterialIcons name="photo-camera" size={21} color={colors.primary} />
+                    <Text style={[styles.photoActionText, { color: colors.textPrimary }]}>Take Photo</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.photoAction, { borderColor: colors.border, backgroundColor: colors.surfaceCard }]}
+                    onPress={() => choosePhotos('gallery')}
+                    disabled={form.photos.length >= MAX_IMAGES}
+                    accessibilityRole="button"
+                  >
+                    <MaterialIcons name="photo-library" size={21} color={colors.primary} />
+                    <Text style={[styles.photoActionText, { color: colors.textPrimary }]}>Choose from Gallery</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.photoGrid}>
+                  {form.photos.map((photo, index) => (
+                    <View key={`${photo.uri}-${index}`} style={styles.photoPreview}>
+                      <Image source={{ uri: photo.uri }} style={styles.photoImage} accessibilityLabel="Selected incident photo" />
+                      <TouchableOpacity
+                        style={[styles.photoRemove, { backgroundColor: colors.sos }]}
+                        onPress={() => removePhoto(index)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Remove selected image"
+                      >
+                        <MaterialIcons name="close" size={19} color="#fff" />
+                      </TouchableOpacity>
+                      <Text numberOfLines={1} style={styles.photoSize}>
+                        {photo.fileSize ? `${(photo.fileSize / 1024).toFixed(0)} KB` : photo.type.replace('image/', '').toUpperCase()}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={[styles.helper, { color: colors.textMuted }]}>{form.photos.length}/{MAX_IMAGES} images selected</Text>
+
+                <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Reporting Preference *</Text>
+                <Text style={[styles.helper, { color: colors.textSecondary }]}>
+                  Choose how your identity is presented to campus responders. Your signed-in account remains linked to the report for ownership and system audit.
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.preferenceCard,
+                    { borderColor: form.reportingPreference === 'confidential' ? colors.primary : colors.border, backgroundColor: colors.surfaceCard },
+                  ]}
+                  onPress={() => updateForm('reportingPreference', 'confidential')}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: form.reportingPreference === 'confidential' }}
+                >
+                  <MaterialIcons
+                    name={form.reportingPreference === 'confidential' ? 'radio-button-checked' : 'radio-button-unchecked'}
+                    size={23}
+                    color={colors.primary}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.preferenceTitle, { color: colors.textPrimary }]}>Confidential to responders</Text>
+                    <Text style={[styles.preferenceDescription, { color: colors.textSecondary }]}>
+                      Your identity is hidden from responders in incident views. Authorized administrators can still associate this report with your account through system records. This is not complete anonymity.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.preferenceCard,
+                    { borderColor: form.reportingPreference === 'identified' ? colors.primary : colors.border, backgroundColor: colors.surfaceCard },
+                  ]}
+                  onPress={() => updateForm('reportingPreference', 'identified')}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: form.reportingPreference === 'identified' }}
+                >
+                  <MaterialIcons
+                    name={form.reportingPreference === 'identified' ? 'radio-button-checked' : 'radio-button-unchecked'}
+                    size={23}
+                    color={colors.primary}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.preferenceTitle, { color: colors.textPrimary }]}>Report with my identity</Text>
+                    <Text style={[styles.preferenceDescription, { color: colors.textSecondary }]}>
+                      Your name and account details are shown to authorized responders so they can follow up.
+                    </Text>
+                    {!!profile?.fullName && (
+                      <Text style={[styles.profileName, { color: colors.primary }]}>Signed in as {profile.fullName}</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+                <FieldError>{errors.reportingPreference}</FieldError>
+
+                <View style={[styles.emergencyNotice, { backgroundColor: colors.surfaceCard, borderColor: colors.sos }]}>
+                  <MaterialIcons name="warning-amber" size={21} color={colors.sos} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.emergencyTitle, { color: colors.sos }]}>In an immediate emergency</Text>
+                    <Text style={[styles.emergencyText, { color: colors.textSecondary }]}>Submitting this report is not a substitute for contacting emergency responders.</Text>
+                    <TouchableOpacity
+                      style={styles.sosLink}
+                      onPress={() => navigation.navigate('SOS')}
+                      accessibilityRole="button"
+                    >
+                      <Text style={[styles.sosLinkText, { color: colors.sos }]}>Open Emergency SOS</Text>
+                      <MaterialIcons name="arrow-forward" size={17} color={colors.sos} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </>
+            )}
+          </>
+        )}
+
+        {emergency && (
+          <View style={[styles.emergencyCategoryNote, { backgroundColor: colors.surfaceCard, borderColor: colors.sos }]}>
+            <MaterialIcons name="emergency" size={19} color={colors.sos} />
+            <Text style={[styles.emergencyText, { color: colors.textSecondary }]}>
+              If someone is in immediate danger, contact emergency responders now. This form may not be monitored continuously.
+            </Text>
+          </View>
+        )}
+
+        {!!form.incidentType && (
+          <TouchableOpacity
+            style={[styles.primaryButton, { backgroundColor: colors.primary }, submitting && styles.buttonDisabled]}
+            onPress={confirmSubmit}
+            disabled={submitting}
+            accessibilityRole="button"
+          >
+            {submitting
+              ? <ActivityIndicator color="#fff" />
+              : <MaterialIcons name="send" size={20} color="#fff" />}
+            <Text style={styles.primaryButtonText}>{submitting ? 'Submitting report…' : 'Submit Incident Report'}</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity
-          style={[s.nextBtn, { backgroundColor: colors.primary }, !canNext() && { backgroundColor: colors.border }, step > 0 && { flex: 1, marginLeft: 8 }]}
-          onPress={() => step < STEPS.length - 1 ? setStep(p => p + 1) : handleSubmit()}
-          disabled={!canNext() || loading}
-          activeOpacity={0.85}
-        >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={[s.nextBtnText, !canNext() && { color: colors.textMuted }]} numberOfLines={1}>{step === STEPS.length - 1 ? '✓ Submit Report' : 'Continue →'}</Text>}
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
+
+      <DropdownModal
+        visible={openDropdown === 'category'}
+        title="Select incident category"
+        options={INCIDENT_CATEGORIES}
+        selected={form.category}
+        colors={colors}
+        onSelect={selectCategory}
+        onClose={() => setOpenDropdown('')}
+      />
+      <DropdownModal
+        visible={openDropdown === 'type'}
+        title="Select type of incident"
+        options={typeOptions}
+        selected={form.incidentType}
+        colors={colors}
+        onSelect={value => {
+          updateForm('incidentType', value);
+          setOpenDropdown('');
+        }}
+        onClose={() => setOpenDropdown('')}
+      />
+
+      <Modal
+        visible={confirmVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmVisible(false)}
+      >
+        <View style={[styles.modalScrim, { backgroundColor: colors.modalScrim }]}>
+          <View style={[styles.confirmModal, { backgroundColor: colors.surfaceCard }]}>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Confirm incident report</Text>
+            <Text style={[styles.confirmSummary, { color: colors.textSecondary }]}>
+              {form.category} · {form.incidentType}{'\n'}
+              Location: {form.locationText.trim()}{'\n'}
+              Photos: {form.photos.length}{'\n'}
+              Reporting preference: {form.reportingPreference === 'confidential' ? 'Confidential to responders' : 'With my identity'}
+            </Text>
+            <Text style={[styles.confirmPrivacy, { color: colors.textSecondary }]}>
+              {form.reportingPreference === 'confidential'
+                ? 'Responders will not see your identity in the incident view. Authorized administrators can still associate the report with your account in system records.'
+                : 'Your identity will be included for authorized responders.'}
+            </Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setConfirmVisible(false)}>
+                <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Review form</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.primaryButton, styles.confirmSubmit, { backgroundColor: colors.primary }, submitting && styles.buttonDisabled]}
+                onPress={submitReport}
+                disabled={submitting}
+              >
+                <Text style={styles.primaryButtonText}>Confirm & Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
 
-const s = StyleSheet.create({
-  dotsWrap:        { borderBottomWidth: 1 },
-  dots:            { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12 },
-  dotWrap:         { alignItems: 'center', gap: 3, minWidth: 36 },
-  dot:             { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  dotNum:          { fontSize: 12, fontWeight: '700' },
-  dotLabel:        { fontSize: 10 },
-  dotLine:         { flex: 1, height: 2, marginBottom: 12, marginHorizontal: 2 },
-  stepScroll:      { flex: 1 },
-  stepContent:     { padding: 16, paddingBottom: 32 },
-  stepPrompt:      { fontSize: 15, marginBottom: 16 },
-  catCard:         { flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: radius.lg, borderWidth: 2, marginBottom: 12, gap: 16 },
-  catIcon:         { fontSize: 32 },
-  catLabel:        { fontSize: 16, fontWeight: '700' },
-  catDesc:         { fontSize: 12, marginTop: 2 },
-  catCheck:        { fontSize: 20 },
-  triageBanner:    { borderWidth: 1.5, borderRadius: radius.md, padding: 12, marginBottom: 16 },
-  triageTitle:     { fontSize: 13, fontWeight: '700' },
-  triageSub:       { fontSize: 12, marginTop: 2 },
-  applyBtn:        { marginTop: 8, paddingHorizontal: 14, paddingVertical: 5, borderRadius: radius.full, alignSelf: 'flex-start' },
-  applyBtnText:    { color: '#fff', fontSize: 12, fontWeight: '700' },
-  triageInline:    { borderWidth: 1, borderRadius: radius.md, padding: 10, marginBottom: 12 },
-  triageInlineText:{ fontSize: 13, fontWeight: '600' },
-  dupWarn:         { backgroundColor: '#fffbeb', borderWidth: 1.5, borderColor: '#fde68a', borderRadius: radius.md, padding: 12, marginBottom: 12 },
-  dupTitle:        { fontSize: 13, fontWeight: '700', color: '#92400e' },
-  dupBody:         { fontSize: 12, marginTop: 2 },
-  dupNote:         { fontSize: 11, marginTop: 4 },
-  fieldLabel:      { fontSize: 13, fontWeight: '600', marginBottom: 6 },
-  fieldHint:       { fontWeight: '400' },
-  input:           { borderWidth: 1.5, borderRadius: radius.md, padding: 13, fontSize: 15, marginBottom: 14 },
-  textarea:        { height: 110, textAlignVertical: 'top' },
-  anonBox:         { borderWidth: 1.5, borderRadius: radius.md, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  anonTitle:       { fontSize: 14, fontWeight: '700' },
-  anonSub:         { fontSize: 12, marginTop: 2 },
-  locCard:         { borderWidth: 1.5, borderRadius: radius.md, padding: 16, marginBottom: 14 },
-  locTitle:        { fontSize: 14, fontWeight: '700', marginBottom: 10 },
-  locBtn:          { borderRadius: radius.md, padding: 12, alignItems: 'center' },
-  locBtnText:      { fontSize: 14, fontWeight: '600' },
-  locCaptured:     { borderRadius: radius.sm, padding: 10 },
-  locCapturedText: { fontSize: 13, fontWeight: '600' },
-  locCoords:       { fontSize: 12, marginTop: 2, fontFamily: 'Courier New' },
-  locHint:         { fontSize: 11, marginTop: 8 },
-  photoRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: radius.sm, padding: 10 },
-  photoThumb:      { width: 60, height: 60, borderRadius: 6 },
-  photoDash:       { borderWidth: 1.5, borderStyle: 'dashed', borderRadius: radius.md, padding: 12, alignItems: 'center' },
-  photoDashText:   { fontSize: 14, fontWeight: '600' },
-  reviewCard:      { borderRadius: radius.lg, borderWidth: 1.5, overflow: 'hidden', marginBottom: 12 },
-  reviewHeader:    { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 10 },
-  reviewHeaderIcon:{ fontSize: 24 },
-  reviewHeaderTitle:{ color: '#fff', fontWeight: '700', fontSize: 15 },
-  reviewHeaderId:  { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontFamily: 'Courier New' },
-  urgencyPill:     { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 3 },
-  urgencyPillText: { color: '#fff', fontSize: 11, fontWeight: '600' },
-  reviewBody:      { padding: 16, gap: 12 },
-  reviewRow:       { borderBottomWidth: 1, paddingBottom: 10 },
-  reviewRowLabel:  { fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: 2 },
-  reviewRowValue:  { fontSize: 14 },
-  reviewNote:      { fontSize: 12, textAlign: 'center' },
-  footer:          { flexDirection: 'row', padding: 16, borderTopWidth: 1 },
-  nextBtn:         { flex: 1, borderRadius: radius.md, padding: 15, alignItems: 'center' },
-  nextBtnText:     { color: '#fff', fontSize: 16, fontWeight: '700' },
-  backBtn:         { paddingHorizontal: 20, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  backBtnText:     { fontSize: 15, fontWeight: '600' },
-  successScreen:   { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  successTitle:    { fontSize: 22, fontWeight: '800', marginBottom: 8 },
-  successSub:      { fontSize: 14, marginBottom: 8, textAlign: 'center' },
-  incidentId:      { fontFamily: 'Courier New', fontSize: 16, paddingHorizontal: 18, paddingVertical: 8, borderRadius: radius.md, marginBottom: 28, borderWidth: 1 },
-  backHomeBtn:     { borderRadius: radius.md, paddingHorizontal: 32, paddingVertical: 14, borderWidth: 2 },
-  backHomeBtnText: { fontSize: 15, fontWeight: '700' },
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, gap: spacing.sm },
+  heading: { fontSize: typography.screenTitle, fontWeight: '700', letterSpacing: 0 },
+  intro: { fontSize: 14, lineHeight: 21, marginBottom: 12 },
+  label: { fontSize: typography.label, fontWeight: '600', marginTop: spacing.sm, marginBottom: 5 },
+  selectButton: { minHeight: 52, borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  selectText: { flex: 1, fontSize: 15, lineHeight: 20 },
+  input: { ...controls.input, paddingVertical: spacing.md, fontSize: typography.body },
+  descriptionInput: { minHeight: 132, maxHeight: 230, paddingTop: 13, lineHeight: 21 },
+  counter: { alignSelf: 'flex-end', fontSize: 12, marginTop: -5 },
+  fieldError: { color: '#B42318', fontSize: 12, marginTop: -3 },
+  sectionHeading: { fontSize: typography.sectionTitle, fontWeight: '700', marginTop: spacing.section, marginBottom: 3 },
+  helper: { fontSize: typography.supporting, lineHeight: 18, marginBottom: 3 },
+  gpsButton: { minHeight: 50, borderRadius: radius.md, padding: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, marginTop: 5 },
+  gpsButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  buttonDisabled: { opacity: 0.65 },
+  gpsResult: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', borderWidth: 1, borderRadius: radius.md, padding: 12, marginVertical: 3 },
+  gpsResultTitle: { fontSize: 13, fontWeight: '700' },
+  gpsCoordinates: { fontSize: 13, fontFamily: 'Courier New', marginTop: 3 },
+  gpsAccuracy: { fontSize: 12, marginTop: 2 },
+  photoActions: { flexDirection: 'row', gap: 9, marginTop: 6 },
+  photoActionsNarrow: { flexDirection: 'column' },
+  photoAction: { flex: 1, minHeight: 50, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  photoActionText: { fontSize: 13, fontWeight: '700' },
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
+  photoPreview: { width: 92, height: 100, position: 'relative' },
+  photoImage: { width: 92, height: 78, borderRadius: 9, backgroundColor: '#E7EAF0' },
+  photoRemove: { position: 'absolute', top: 4, right: 4, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  photoSize: { color: '#4B5563', fontSize: 10, marginTop: 3, textAlign: 'center' },
+  preferenceCard: { minHeight: 70, flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderWidth: 1.5, borderRadius: radius.md, padding: 12, marginTop: 5 },
+  preferenceTitle: { fontSize: 14, fontWeight: '800' },
+  preferenceDescription: { fontSize: 12.5, lineHeight: 18, marginTop: 3 },
+  profileName: { fontSize: 12, fontWeight: '700', marginTop: 7 },
+  emergencyNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderWidth: 1, borderRadius: radius.md, padding: 12, marginTop: 19 },
+  emergencyCategoryNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderWidth: 1, borderRadius: radius.md, padding: 11, marginTop: 10 },
+  emergencyTitle: { fontSize: 13, fontWeight: '800' },
+  emergencyText: { flex: 1, fontSize: 12.5, lineHeight: 18, marginTop: 2 },
+  sosLink: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingVertical: 6, marginTop: 5 },
+  sosLinkText: { fontSize: 13, fontWeight: '800' },
+  suggestion: { borderWidth: 1, borderRadius: radius.sm, padding: 9, marginTop: 5 },
+  suggestionText: { fontSize: 12, fontWeight: '700' },
+  duplicateNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, borderWidth: 1, borderRadius: radius.sm, padding: 9, marginTop: 4 },
+  duplicateText: { flex: 1, fontSize: 12, lineHeight: 17 },
+  primaryButton: { ...controls.primaryButton, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.lg },
+  primaryButtonText: { color: '#fff', fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  secondaryButton: { minHeight: 46, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  secondaryButtonText: { fontSize: 14, fontWeight: '700' },
+  modalScrim: { flex: 1, padding: 20, alignItems: 'center', justifyContent: 'center' },
+  dropdownModal: { width: '100%', maxWidth: 520, maxHeight: '82%', borderRadius: radius.lg, padding: 16, overflow: 'hidden' },
+  modalHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 8 },
+  modalTitle: { fontSize: 18, fontWeight: '800', flex: 1 },
+  iconButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
+  dropdownOption: { minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4 },
+  dropdownOptionText: { flex: 1, fontSize: 14, lineHeight: 20 },
+  confirmModal: { width: '100%', maxWidth: 500, borderRadius: radius.lg, padding: 20 },
+  confirmSummary: { fontSize: 14, lineHeight: 22, marginTop: 12 },
+  confirmPrivacy: { fontSize: 12.5, lineHeight: 18, marginTop: 12 },
+  confirmActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 15 },
+  cancelButton: { minHeight: 48, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+  cancelText: { fontSize: 13, fontWeight: '700' },
+  confirmSubmit: { flex: 1, minHeight: 48, marginTop: 0 },
+  successScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
+  successTitle: { fontSize: 23, fontWeight: '800', marginTop: 13 },
+  successText: { fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 7 },
+  reference: { color: '#142D4E', backgroundColor: '#E9EEF4', borderRadius: radius.md, padding: 12, fontFamily: 'Courier New', fontSize: 13, textAlign: 'center', marginTop: 17, overflow: 'hidden' },
 });

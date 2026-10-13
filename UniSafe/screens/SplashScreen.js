@@ -4,8 +4,21 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../src/ThemeContext';
 import { api } from '../src/utils/api';
 
+const legacyLightColors = {
+  primary: '#A80808',
+  accent: '#F8E808',
+  surfaceCard: '#FFFFFF',
+};
+
+const legacyDarkColors = {
+  primary: '#D93030',
+  accent: '#F8E808',
+  surfaceCard: '#1C1C1C',
+};
+
 export default function SplashScreen({ navigation }) {
-  const { colors } = useTheme();
+  const { isDark } = useTheme();
+  const colors = isDark ? legacyDarkColors : legacyLightColors;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
@@ -57,7 +70,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
   },
   logo:     { width: 90, height: 90 },
-  title:    { color: '#fff', fontSize: 32, fontWeight: 'bold', letterSpacing: 4, marginBottom: 6 },
+  title:    { color: '#FFFFFF', fontSize: 32, fontWeight: 'bold', letterSpacing: 4, marginBottom: 6 },
   titleUnderline: { width: 60, height: 3, borderRadius: 2, marginBottom: 12 },
   subtitle:    { color: 'rgba(255,255,255,0.85)', fontSize: 13, textAlign: 'center', marginBottom: 10, letterSpacing: 0.5 },
   university:  { color: 'rgba(255,255,255,0.65)', fontSize: 12, textAlign: 'center', paddingHorizontal: 32, lineHeight: 18 },

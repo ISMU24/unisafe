@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../ThemeContext';
-import { STATUS_META } from '../theme';
 import { APPEAL_STATUS_META } from '../theme';
 
 export default function AppealTracker({ appeals, onBack }) {
@@ -23,7 +22,10 @@ export default function AppealTracker({ appeals, onBack }) {
         {filters.map(f => {
           const active = filter === f;
           const meta = APPEAL_STATUS_META[f];
-          const statusColor = meta ? (STATUS_META[meta.label]?.color || colors.primary) : colors.primary;
+          const statusColor = f === 'Submitted' ? colors.statusOpen
+            : f === 'Under Review' ? colors.statusInProgress
+            : f === 'Decision Issued' ? colors.statusResolved
+            : colors.primary;
           return (
             <TouchableOpacity
               key={f}
@@ -41,15 +43,18 @@ export default function AppealTracker({ appeals, onBack }) {
         keyExtractor={item => item.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         renderItem={({ item }) => {
-          const meta = STATUS_META[item.status] || STATUS_META.Open;
-          const appealMeta = APPEAL_STATUS_META[item.status] || { icon: '📋', label: item.status };
+          const appealMeta = APPEAL_STATUS_META[item.status] || { icon: 'description', label: item.status };
+          const statusColor = item.status === 'Submitted' ? colors.statusOpen
+            : item.status === 'Under Review' ? colors.statusInProgress
+            : item.status === 'Decision Issued' ? colors.statusResolved
+            : colors.textMuted;
           return (
             <View style={[s.card, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Text style={[s.appealId, { color: colors.textMuted }]}>{item.id}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: meta.color + '18', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: meta.color + '44' }}>
-                  <Text style={{ marginRight: 4, fontSize: 12 }}>{appealMeta.icon}</Text>
-                  <Text style={[s.statusText, { color: meta.color, fontSize: 11 }]}>{item.status}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: `${statusColor}14`, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: `${statusColor}40` }}>
+                  <MaterialIcons name={appealMeta.icon} size={14} color={statusColor} style={{ marginRight: 4 }} />
+                  <Text style={[s.statusText, { color: statusColor, fontSize: 11 }]}>{item.status}</Text>
                 </View>
               </View>
               <Text style={[s.title, { color: colors.textPrimary }]} numberOfLines={2}>{item.description}</Text>
@@ -59,7 +64,7 @@ export default function AppealTracker({ appeals, onBack }) {
                   {item.timeline.slice(-3).reverse().map((t, i) => (
                     <View key={i} style={{ flexDirection: 'row', marginBottom: 4 }}>
                       <Text style={{ color: colors.textMuted, fontSize: 11, width: 100 }}>{new Date(t.time).toLocaleDateString()}</Text>
-                      <Text style={[s.statusText, { color: STATUS_META[t.status]?.color || colors.textSecondary, fontSize: 12 }]}>{t.note}</Text>
+                      <Text style={[s.statusText, { color: colors.textSecondary, fontSize: 12 }]}>{t.note}</Text>
                     </View>
                   ))}
                 </View>
@@ -69,7 +74,7 @@ export default function AppealTracker({ appeals, onBack }) {
         }}
         ListEmptyComponent={
           <View style={{ paddingVertical: 48, alignItems: 'center' }}>
-            <Text style={{ fontSize: 40 }}>📋</Text>
+            <MaterialIcons name="folder-open" size={40} color={colors.textMuted} />
             <Text style={[s.empty, { color: colors.textMuted }]}>No appeals {filter !== 'All' ? `in "${filter}"` : ''}</Text>
           </View>
         }

@@ -40,7 +40,7 @@ export default function AppealForm({ onSubmit }) {
               style={[s.catChip, { borderColor: selected ? cat.color : th.border, backgroundColor: selected ? cat.color + '22' : th.surfaceCard }]}
               onPress={() => setCategory(cat.id)}
             >
-              <Text style={{ fontSize: 16 }}>{cat.icon}</Text>
+              <MaterialIcons name={cat.icon} size={18} color={selected ? cat.color : th.textMuted} />
               <Text style={[s.catChipText, { color: selected ? cat.color : th.textSecondary }]}>{cat.label}</Text>
             </TouchableOpacity>
           );
@@ -65,7 +65,7 @@ export default function AppealForm({ onSubmit }) {
       </Text>
 
       <TouchableOpacity
-        style={[s.submitBtn, { backgroundColor: category ? '#455A64' : th.surfaceAlt }]}
+        style={[s.submitBtn, { backgroundColor: category ? th.primary : th.disabled }]}
         onPress={submit}
         disabled={!category || submitting}
       >
@@ -84,7 +84,7 @@ export default function AppealForm({ onSubmit }) {
 
 const s = StyleSheet.create({
   label:     { fontSize: 12, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
-  catChip:   { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1 },
+  catChip:   { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1 },
   catChipText: { fontSize: 14, fontWeight: '600' },
   textarea:  { borderRadius: 12, borderWidth: 1, padding: 14, fontSize: 15, minHeight: 160 },
   hint:      { fontSize: 12, lineHeight: 18, marginTop: 12, marginBottom: 20 },

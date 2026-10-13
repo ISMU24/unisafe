@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { radius } from '../src/theme';
 import { useTheme } from '../src/ThemeContext';
@@ -10,16 +11,18 @@ import { subscribeRealtime } from '../src/utils/realtime';
 
 // Must cover the backend's incident statuses; anything missing falls back to a
 // neutral dot, which makes a real status change look like no change at all.
-const STATUS_COLORS = {
-  Submitted: '#D32F2F', Received: '#E65100', 'Under Review': '#E65100',
-  Assigned: '#E65100', Responding: '#E65100', 'In Progress': '#E65100',
-  Resolved: '#2E7D32', Cancelled: '#9E9E9E', Closed: '#9E9E9E', Open: '#D32F2F',
-};
 const STATUS_ICONS = {
-  Submitted: '🔴', Received: '🟠', 'Under Review': '🟡', Assigned: '🟡',
-  Responding: '🟡', 'In Progress': '🟡', Resolved: '🟢', Cancelled: '⚪',
-  Closed: '⚪', Open: '🔴',
+  Submitted: 'error-outline', Received: 'schedule', 'Under Review': 'manage-search',
+  Assigned: 'assignment-ind', Responding: 'directions-run', 'In Progress': 'schedule',
+  Resolved: 'check-circle', Cancelled: 'cancel', Closed: 'check-circle-outline', Open: 'error-outline',
 };
+
+function statusColor(status, colors) {
+  if (['Submitted', 'Open', 'Cancelled'].includes(status)) return colors.statusOpen;
+  if (['Received', 'Under Review', 'Assigned', 'Responding', 'In Progress'].includes(status)) return colors.statusInProgress;
+  if (status === 'Resolved') return colors.statusResolved;
+  return colors.statusClosed;
+}
 
 export default function ReportDetailScreen({ route }) {
   const { colors } = useTheme();
@@ -83,6 +86,12 @@ export default function ReportDetailScreen({ route }) {
           <Text style={[s.label, { color: colors.textMuted }]}>CATEGORY</Text>
           <CategoryBadge category={report.category} />
         </View>
+        {!!report.incident_type && (
+          <View style={[s.row, { borderBottomColor: colors.border }]}>
+            <Text style={[s.label, { color: colors.textMuted }]}>INCIDENT TYPE</Text>
+            <Text style={[s.value, { color: colors.textPrimary }]}>{report.incident_type}</Text>
+          </View>
+        )}
         <View style={[s.row, { borderBottomColor: colors.border }]}>
           <Text style={[s.label, { color: colors.textMuted }]}>SUBMITTED</Text>
           <Text style={[s.value, { color: colors.textPrimary }]}>{report.submittedAt}</Text>
@@ -101,7 +110,10 @@ export default function ReportDetailScreen({ route }) {
         )}
         <View style={[s.row, { borderBottomWidth: 0 }]}>
           <Text style={[s.label, { color: colors.textMuted }]}>IDENTITY</Text>
-          <Text style={[s.value, { color: colors.textPrimary }]}>{report.anonymous ? '🕵️ Anonymous' : '👤 Identified'}</Text>
+          <View style={s.identity}>
+            <MaterialIcons name={report.anonymous ? 'visibility-off' : 'visibility'} size={16} color={colors.textSecondary} />
+            <Text style={[s.value, { color: colors.textPrimary }]}>{report.anonymous ? 'Confidential to responders' : 'Visible to responders'}</Text>
+          </View>
         </View>
       </View>
 
@@ -109,8 +121,8 @@ export default function ReportDetailScreen({ route }) {
         <View style={[s.timelineCard, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
           <Text style={[s.timelineLabel, { color: colors.textSecondary }]}>STATUS TIMELINE</Text>
           {report.timeline.map((ev, i) => {
-            const c = STATUS_COLORS[ev.status] || colors.textMuted;
-            const ic = STATUS_ICONS[ev.status] || '•';
+            const c = statusColor(ev.status, colors);
+            const ic = STATUS_ICONS[ev.status] || 'radio-button-unchecked';
             return (
               <View key={i} style={s.tlRow}>
                 <View style={s.tlLeft}>
@@ -118,7 +130,10 @@ export default function ReportDetailScreen({ route }) {
                   {i < report.timeline.length - 1 && <View style={[s.tlLine, { backgroundColor: colors.border }]} />}
                 </View>
                 <View style={[s.tlBody, i === report.timeline.length - 1 && { paddingBottom: 0 }]}>
-                  <Text style={[s.tlStatus, { color: c }]}>{ic} {ev.status}</Text>
+                  <View style={s.timelineStatus}>
+                    <MaterialIcons name={ic} size={16} color={c} />
+                    <Text style={[s.tlStatus, { color: c }]}>{ev.status}</Text>
+                  </View>
                   <Text style={[s.tlNote, { color: colors.textSecondary }]}>{ev.note}</Text>
                   <Text style={[s.tlTime, { color: colors.textMuted }]}>{ev.time}</Text>
                 </View>
@@ -148,6 +163,8 @@ const s = StyleSheet.create({
   tlLine: { width: 2, flex: 1, marginTop: 4 },
   tlBody: { flex: 1, paddingBottom: 16 },
   tlStatus: { fontSize: 13, fontWeight: '700' },
+  timelineStatus: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   tlNote: { fontSize: 12, marginTop: 2 },
   tlTime: { fontSize: 11, marginTop: 3, fontFamily: 'Courier New' },
 });

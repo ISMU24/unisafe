@@ -65,6 +65,7 @@ db.exec(`
     id                  TEXT PRIMARY KEY,
     reporter_id         TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     category            TEXT NOT NULL CHECK(category IN ('Security', 'Fire', 'Ambulance', 'Other')),
+    incident_type       TEXT,
     title               TEXT NOT NULL,
     description         TEXT NOT NULL,
     latitude            REAL,
@@ -91,6 +92,7 @@ db.exec(`
     file_url        TEXT NOT NULL,
     mime_type       TEXT NOT NULL,
     file_size       INTEGER NOT NULL,
+    file_data       BLOB,
     uploaded_by     TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -380,6 +382,16 @@ for (const table of ['sos_events', 'safety_alerts', 'assistance_requests', 'appe
   const columns = db.prepare(`PRAGMA table_info(${table})`).all();
   if (!columns.some(column => column.name === 'deleted_at')) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN deleted_at TEXT`);
+  }
+}
+
+for (const [table, column, definition] of [
+  ['incidents', 'incident_type', 'TEXT'],
+  ['incident_media', 'file_data', 'BLOB'],
+]) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some(existing => existing.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
 }
 

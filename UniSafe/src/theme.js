@@ -1,121 +1,116 @@
-// PNGUOT (Papua New Guinea University of Technology) brand palette
-// Sampled directly from the official UOT Logo 3:
-//   dominant red: #A80808
-//   gold/yellow:  #F8E808
-//   deep maroon:  #680808
-
-// ── Brand colors (fixed — never change with theme)
+// Shared UniSafe design tokens. Keep incident accents restrained and reserve
+// emergency red for SOS, urgent states, and errors.
 export const brand = {
-  uotRed:        '#A80808',
-  uotRedDark:    '#680808',
-  uotRedLight:   '#D32F2F',
-  uotGold:       '#F8E808',
-  uotGoldDark:   '#C9BC08',
-  uotGoldLight:  '#FFF9C4',
+  uotRed:        '#142D4E',
+  uotRedDark:    '#0E223C',
+  uotRedLight:   '#344E6C',
+  uotGold:       '#344E6C',
+  uotGoldDark:   '#263B56',
+  uotGoldLight:  '#E9EEF4',
 };
 
-// ── Light theme
 const light = {
   mode: 'light',
   ...brand,
-  primary:       '#A80808',
-  primaryDark:   '#680808',
-  primaryLight:  '#D32F2F',
-  accent:        '#F8E808',
-  accentDark:    '#C9BC08',
+  primary:       '#142D4E',
+  primaryDark:   '#0E223C',
+  primaryLight:  '#344E6C',
+  accent:        '#344E6C',
+  accentDark:    '#263B56',
 
-  surface:       '#FAFAFA',
+  surface:       '#F5F7FA',
   surfaceCard:   '#FFFFFF',
-  surfaceAlt:    '#F0F0F0',
-  surfaceGold:   '#FFF9C4',
-  border:        '#E5E5E5',
-  borderGold:    '#F8E808',
+  surfaceAlt:    '#F5F7FA',
+  surfaceGold:   '#E9EEF4',
+  border:        '#E2E8F0',
+  borderGold:    '#CBD5E1',
 
-  textPrimary:   '#1A1A1A',
-  textSecondary: '#424242',
-  textMuted:     '#9E9E9E',
+  textPrimary:   '#172B4D',
+  textSecondary: '#64748B',
+  textMuted:     '#64748B',
   textOnRed:     '#FFFFFF',
-  textOnGold:    '#1A1A1A',
+  textOnGold:    '#FFFFFF',
 
-  navy:          '#A80808',
-  navyMid:       '#8B0606',
-  navyLight:     '#C40808',
+  navy:          '#142D4E',
+  navyMid:       '#263B56',
+  navyLight:     '#344E6C',
 
-  security:      '#1565C0',
-  fire:          '#D32F2F',
-  ambulance:     '#2E7D32',
-  other:         '#E65100',
+  security:      '#344E6C',
+  fire:          '#C2410C',
+  ambulance:     '#15803D',
+  other:         '#7C3AED',
 
-  // Policies module: single neutral accent (steel/slate) — deliberately
-  // distinct from the four incident-category colors above.
-  policy:        '#455A64',
-  policyBg:      '#ECEFF1',
-  policyBorder:  '#B0BEC5',
+  policy:        '#344E6C',
+  policyBg:      '#EEF2F6',
+  policyBorder:  '#CBD5E1',
 
-  statusOpen:        '#D32F2F',
-  statusInProgress:  '#E65100',
-  statusResolved:    '#2E7D32',
-  statusClosed:      '#9E9E9E',
+  statusOpen:        '#B91C1C',
+  statusInProgress:  '#C2410C',
+  statusResolved:    '#15803D',
+  statusClosed:      '#64748B',
 
-  sos:          '#D32F2F',
-  sosDark:      '#B71C1C',
+  sos:          '#B91C1C',
+  sosDark:      '#991B1B',
 
   shadow:       '#000000',
   overlay:      'rgba(0,0,0,0.4)',
-  modalScrim:   'rgba(168,8,8,0.4)',
+  modalScrim:   'rgba(20,45,78,0.42)',
+  inputBackground: '#FFFFFF',
+  inputBorder: '#E2E8F0',
+  disabled: '#CBD5E1',
 
   statusBar:    'dark-content',
 };
 
-// ── Dark theme
 const dark = {
   mode: 'dark',
   ...brand,
-  // Keep primary as UOT red so SOS/emergency/branding stay consistent
-  primary:       '#D93030',     // slightly brighter red for dark backgrounds
-  primaryDark:   '#A80808',
-  primaryLight:  '#F05850',
-  accent:        '#F8E808',     // gold accent stays
-  accentDark:    '#C9BC08',
+  primary:       '#9CB4D0',
+  primaryDark:   '#142D4E',
+  primaryLight:  '#B8C9DD',
+  accent:        '#9CB4D0',
+  accentDark:    '#7189A5',
 
-  surface:       '#0E0E0E',     // near-black background
-  surfaceCard:   '#1C1C1C',     // dark card
-  surfaceAlt:    '#252525',
-  surfaceGold:   '#3A3306',     // dark gold-tinted for unread/special
-  border:        '#2E2E2E',
-  borderGold:    '#F8E808',
+  surface:       '#111A27',
+  surfaceCard:   '#1B2736',
+  surfaceAlt:    '#233143',
+  surfaceGold:   '#26364A',
+  border:        '#34465B',
+  borderGold:    '#52657C',
 
-  textPrimary:   '#F5F5F5',
-  textSecondary: '#CFCFCF',
-  textMuted:     '#888888',
+  textPrimary:   '#F1F5F9',
+  textSecondary: '#C1CCDA',
+  textMuted:     '#A3B1C2',
   textOnRed:     '#FFFFFF',
-  textOnGold:    '#1A1A1A',
+  textOnGold:    '#102033',
 
-  navy:          '#D93030',
-  navyMid:       '#A80808',
-  navyLight:     '#F05850',
+  navy:          '#9CB4D0',
+  navyMid:       '#7189A5',
+  navyLight:     '#B8C9DD',
 
-  security:      '#64B5F6',
-  fire:          '#EF5350',
-  ambulance:     '#66BB6A',
-  other:         '#FFB74D',
+  security:      '#9CB4D0',
+  fire:          '#FB923C',
+  ambulance:     '#4ADE80',
+  other:         '#C4B5FD',
 
-  // Policies module — neutral slate, brighter on dark backgrounds.
-  policy:        '#90A4AE',
-  policyBg:      '#263238',
-  policyBorder:  '#455A64',
+  policy:        '#9CB4D0',
+  policyBg:      '#233143',
+  policyBorder:  '#52657C',
 
-  statusOpen:        '#EF5350',
-  statusInProgress:  '#FFB74D',
-  statusResolved:    '#66BB6A',
-  statusClosed:      '#9E9E9E',
+  statusOpen:        '#F87171',
+  statusInProgress:  '#FB923C',
+  statusResolved:    '#4ADE80',
+  statusClosed:      '#A3B1C2',
 
-  sos:          '#EF5350',
-  sosDark:      '#C62828',
+  sos:          '#F87171',
+  sosDark:      '#B91C1C',
 
   shadow:       '#000000',
   overlay:      'rgba(0,0,0,0.6)',
   modalScrim:   'rgba(0,0,0,0.75)',
+  inputBackground: '#1B2736',
+  inputBorder: '#34465B',
+  disabled: '#52657C',
 
   statusBar:    'light-content',
 };
@@ -134,6 +129,39 @@ export const radius = {
   full: 9999,
 };
 
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  section: 28,
+};
+
+export const typography = {
+  screenTitle: 24,
+  sectionTitle: 17,
+  label: 14,
+  body: 15,
+  supporting: 12,
+};
+
+export const shadows = {
+  card: {
+    shadowColor: '#142D4E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+};
+
+export const controls = {
+  input: { minHeight: 50, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md },
+  primaryButton: { minHeight: 50, borderRadius: radius.md, paddingHorizontal: spacing.lg },
+  secondaryButton: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, paddingHorizontal: spacing.lg },
+};
+
 export const fonts = {
   body:    'System',
   mono:    'Courier New',
@@ -141,10 +169,10 @@ export const fonts = {
 };
 
 export const categoryMeta = {
-  Security:  { color: light.security,  icon: '🛡️', label: 'Security'  },
-  Fire:      { color: light.fire,      icon: '🔥', label: 'Fire'      },
-  Ambulance: { color: light.ambulance, icon: '🚑', label: 'Ambulance' },
-  Other:     { color: light.other,     icon: '📋', label: 'Other'     },
+  Security:  { color: light.security,  icon: 'security', label: 'Security'  },
+  Fire:      { color: light.fire,      icon: 'local-fire-department', label: 'Fire'      },
+  Ambulance: { color: light.ambulance, icon: 'medical-services', label: 'Ambulance' },
+  Other:     { color: light.other,     icon: 'report-problem', label: 'Other'     },
 };
 
 export const STATUS_META = {
@@ -170,7 +198,7 @@ export const POLICY_CATEGORIES = [
   {
     id: 'university',
     label: 'University Policies',
-    icon: '🏛️',
+    icon: 'account-balance',
     folder: 'University-Policies',
     desc: 'Act, statutes and core institutional policies.',
     appealsHint: null,
@@ -178,7 +206,7 @@ export const POLICY_CATEGORIES = [
   {
     id: 'board',
     label: 'Board Policies',
-    icon: '👥',
+    icon: 'groups',
     folder: 'Board-Policies',
     desc: 'Union Board and Student Representative Council constitutions.',
     appealsHint: null,
@@ -186,7 +214,7 @@ export const POLICY_CATEGORIES = [
   {
     id: 'academic',
     label: 'Academic Policies',
-    icon: '🎓',
+    icon: 'school',
     folder: 'Academic-Policies',
     desc: 'AI use, academic integrity, calendars and certification.',
     appealsHint: 'grade',
@@ -194,7 +222,7 @@ export const POLICY_CATEGORIES = [
   {
     id: 'student',
     label: 'Student Policies',
-    icon: '🧑\u200d🎓',
+    icon: 'people',
     folder: 'Student-Policies',
     desc: 'Admission, rules, fees and refunds.',
     appealsHint: 'fees',
@@ -202,7 +230,7 @@ export const POLICY_CATEGORIES = [
   {
     id: 'research',
     label: 'Research Policies',
-    icon: '🔬',
+    icon: 'science',
     folder: 'Research-Policies',
     desc: 'Research management and conference guidelines.',
     appealsHint: null,
@@ -210,7 +238,7 @@ export const POLICY_CATEGORIES = [
   {
     id: 'ict',
     label: 'ICT Policies',
-    icon: '💻',
+    icon: 'computer',
     folder: 'ICT-Policies',
     desc: 'Acceptable use, internet and IT governance.',
     appealsHint: 'disciplinary',
@@ -218,7 +246,7 @@ export const POLICY_CATEGORIES = [
   {
     id: 'hr',
     label: 'HR Policies',
-    icon: '🤝',
+    icon: 'handshake',
     folder: 'HR-Policies',
     desc: 'Gender equity, disability and social inclusion.',
     appealsHint: null,
@@ -226,16 +254,16 @@ export const POLICY_CATEGORIES = [
 ];
 
 export const APPEAL_CATEGORIES = [
-  { id: 'Academic',     label: 'Academic',     icon: '🎓', color: '#1565C0' },
-  { id: 'Disciplinary', label: 'Disciplinary', icon: '⚖️', color: '#E65100' },
-  { id: 'Fees',         label: 'Fees',         icon: '💵', color: '#2E7D32' },
-  { id: 'Other',        label: 'Other',        icon: '📋', color: '#9E9E9E' },
+  { id: 'Academic',     label: 'Academic',     icon: 'school', color: '#344E6C' },
+  { id: 'Disciplinary', label: 'Disciplinary', icon: 'gavel', color: '#C2410C' },
+  { id: 'Fees',         label: 'Fees',         icon: 'payments', color: '#15803D' },
+  { id: 'Other',        label: 'Other',        icon: 'description', color: '#64748B' },
 ];
 
 export const APPEAL_STATUS_META = {
-  Submitted:      { icon: '🔴', label: 'Submitted'      },
-  'Under Review': { icon: '🟡', label: 'Under Review'   },
-  'Decision Issued': { icon: '🟢', label: 'Decision Issued' },
+  Submitted:      { icon: 'error-outline', label: 'Submitted'      },
+  'Under Review': { icon: 'manage-search', label: 'Under Review'   },
+  'Decision Issued': { icon: 'check-circle', label: 'Decision Issued' },
 };
 
 // Map an appeal category to the policy folders most likely to govern it,
@@ -248,4 +276,3 @@ export const APPEAL_POLICY_HINTS = {
   disciplinary:   ['Student-Policies', 'ICT-Policies'],
   other:          ['Student-Policies'],
 };
-

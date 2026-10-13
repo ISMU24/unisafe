@@ -18,7 +18,7 @@ export default function PolicyHubScreen({ navigation }) {
         </View>
       </View>
 
-      <View style={[s.tabBar, { borderBottomColor: colors.border }]}>
+      <View style={[s.tabBar, { borderBottomColor: colors.border, backgroundColor: colors.surfaceCard }]}>
         <TouchableOpacity
           style={tab === 'browser' ? [s.tab, s.tabActive, { borderBottomColor: colors.policy }] : s.tab}
           onPress={() => setTab('browser')}
@@ -43,7 +43,7 @@ export default function PolicyHubScreen({ navigation }) {
 const s = StyleSheet.create({
   header:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
   headerTitle:{ fontSize: 20, fontWeight: '700', marginLeft: 10 },
-  tabBar:     { flexDirection: 'row', borderBottomWidth: 1, backgroundColor: '#fff' },
+  tabBar:     { flexDirection: 'row', borderBottomWidth: 1 },
   tab:        { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 6, borderBottomWidth: 3 },
   tabActive:  { borderBottomWidth: 3 },
   tabText:    { fontSize: 14, fontWeight: '600' },

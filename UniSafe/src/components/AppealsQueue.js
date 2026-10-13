@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../ThemeContext';
-import { STATUS_META, APPEAL_STATUS_META } from '../theme';
+import { APPEAL_STATUS_META } from '../theme';
 import { api } from '../utils/api';
 
 const NEXT_STATUS = {
@@ -38,7 +38,7 @@ export default function AppealsQueue({ appeals: initialAppeals, onViewAppeal }) 
         <Text style={[s.filterLabel, { color: colors.textMuted }]}>Category</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
           {catFilters.map(f => (
-            <TouchableOpacity key={f} style={[s.chip, { borderColor: colors.border, backgroundColor: filterCat === f ? '#455A64' : colors.surfaceAlt }]} onPress={() => setFilterCat(f)}>
+            <TouchableOpacity key={f} style={[s.chip, { borderColor: colors.border, backgroundColor: filterCat === f ? colors.primary : colors.surfaceAlt }]} onPress={() => setFilterCat(f)}>
               <Text style={[s.chipText, { color: filterCat === f ? '#fff' : colors.textSecondary }]}>{f}</Text>
             </TouchableOpacity>
           ))}
@@ -50,7 +50,10 @@ export default function AppealsQueue({ appeals: initialAppeals, onViewAppeal }) 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
           {statusFilters.map(f => {
             const active = filterStatus === f;
-            const statusColor = STATUS_META[f]?.color || colors.primary;
+            const statusColor = f === 'Submitted' ? colors.statusOpen
+              : f === 'Under Review' ? colors.statusInProgress
+              : f === 'Decision Issued' ? colors.statusResolved
+              : colors.primary;
             return (
               <TouchableOpacity key={f} style={[s.chip, { borderColor: colors.border, backgroundColor: active ? statusColor : colors.surfaceAlt }]} onPress={() => setFilterStatus(f)}>
                 <Text style={[s.chipText, { color: active ? '#fff' : colors.textSecondary }]}>{f}</Text>
@@ -65,21 +68,24 @@ export default function AppealsQueue({ appeals: initialAppeals, onViewAppeal }) 
         keyExtractor={item => item.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         renderItem={({ item }) => {
-          const statusMeta = STATUS_META[item.status] || STATUS_META.Open;
-          const appealMeta = APPEAL_STATUS_META[item.status] || { icon: '📋', label: item.status };
+          const statusColor = item.status === 'Submitted' ? colors.statusOpen
+            : item.status === 'Under Review' ? colors.statusInProgress
+            : item.status === 'Decision Issued' ? colors.statusResolved
+            : colors.textMuted;
+          const appealMeta = APPEAL_STATUS_META[item.status] || { icon: 'description', label: item.status };
           return (
             <TouchableOpacity style={[s.card, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]} onPress={() => onViewAppeal && onViewAppeal(item)}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Text style={[s.appealId, { color: colors.textMuted }]}>{item.id}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: statusMeta.color + '18', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: statusMeta.color + '44' }}>
-                  <Text style={{ marginRight: 4, fontSize: 12 }}>{appealMeta.icon}</Text>
-                  <Text style={[s.statusText, { color: statusMeta.color, fontSize: 11 }]}>{item.status}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: `${statusColor}14`, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: `${statusColor}40` }}>
+                  <MaterialIcons name={appealMeta.icon} size={14} color={statusColor} style={{ marginRight: 4 }} />
+                  <Text style={[s.statusText, { color: statusColor, fontSize: 11 }]}>{item.status}</Text>
                 </View>
               </View>
               <Text style={[s.title, { color: colors.textPrimary }]} numberOfLines={2}>{item.description}</Text>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, alignItems: 'center' }}>
-                <View style={[s.catBadge, { backgroundColor: '#455A6422', borderColor: '#455A6444' }]}>
-                  <Text style={[s.catText, { color: '#455A64' }]}>{item.category}</Text>
+                <View style={[s.catBadge, { backgroundColor: `${colors.policy}14`, borderColor: `${colors.policy}40` }]}>
+                  <Text style={[s.catText, { color: colors.policy }]}>{item.category}</Text>
                 </View>
                 <Text style={[s.meta, { color: colors.textMuted }]}>
                   {item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : 'N/A'}
@@ -87,7 +93,7 @@ export default function AppealsQueue({ appeals: initialAppeals, onViewAppeal }) 
               </View>
               {NEXT_STATUS[item.status] && (
                 <TouchableOpacity
-                  style={[s.advanceBtn, { backgroundColor: statusMeta.color + '18', borderColor: statusMeta.color + '44' }]}
+                  style={[s.advanceBtn, { backgroundColor: `${statusColor}14`, borderColor: `${statusColor}40` }]}
                   onPress={async () => {
                     const next = NEXT_STATUS[item.status];
                     try {
@@ -98,7 +104,7 @@ export default function AppealsQueue({ appeals: initialAppeals, onViewAppeal }) 
                     }
                   }}
                 >
-                  <Text style={[s.advanceBtnText, { color: statusMeta.color }]}>Advance → {NEXT_STATUS[item.status]}</Text>
+                  <Text style={[s.advanceBtnText, { color: statusColor }]}>Advance → {NEXT_STATUS[item.status]}</Text>
                 </TouchableOpacity>
               )}
             </TouchableOpacity>
@@ -106,7 +112,7 @@ export default function AppealsQueue({ appeals: initialAppeals, onViewAppeal }) 
         }}
         ListEmptyComponent={
           <View style={{ paddingVertical: 48, alignItems: 'center' }}>
-            <Text style={{ fontSize: 40 }}>✅</Text>
+            <MaterialIcons name="check-circle-outline" size={40} color={colors.textMuted} />
             <Text style={[s.empty, { color: colors.textMuted }]}>No appeals match your filters.</Text>
           </View>
         }

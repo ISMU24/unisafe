@@ -71,6 +71,7 @@ CREATE TABLE incidents (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     reporter_id         UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     category            incident_category NOT NULL,
+    incident_type       VARCHAR(120),
     title               VARCHAR(255) NOT NULL,
     description         TEXT NOT NULL,
     latitude            NUMERIC(10, 7),
@@ -91,15 +92,20 @@ CREATE TABLE incidents (
     deleted_at          TIMESTAMPTZ
 );
 
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS incident_type VARCHAR(120);
+
 CREATE TABLE incident_media (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     incident_id     UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
     file_url        VARCHAR(512) NOT NULL,
     mime_type       VARCHAR(128) NOT NULL,
     file_size       INTEGER NOT NULL,
+    file_data       BYTEA,
     uploaded_by     UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE incident_media ADD COLUMN IF NOT EXISTS file_data BYTEA;
 
 CREATE TABLE incident_status_history (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

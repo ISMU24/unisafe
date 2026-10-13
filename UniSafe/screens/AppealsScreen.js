@@ -63,7 +63,7 @@ export default function AppealsScreen({ navigation, route }) {
         </View>
       </View>
 
-      <View style={[s.tabBar, { borderBottomColor: colors.border }]}>
+      <View style={[s.tabBar, { borderBottomColor: colors.border, backgroundColor: colors.surfaceCard }]}>
         <TouchableOpacity style={[s.tab, tab === 'submit' && [s.tabActive, { borderBottomColor: colors.policy }]]} onPress={() => setTab('submit')}>
           <Text style={[s.tabText, { color: tab === 'submit' ? colors.policy : colors.textMuted }]}>Submit</Text>
         </TouchableOpacity>
@@ -95,7 +95,7 @@ export default function AppealsScreen({ navigation, route }) {
 const s = StyleSheet.create({
   header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
   headerTitle: { fontSize: 20, fontWeight: '700', marginLeft: 10 },
-  tabBar:      { flexDirection: 'row', borderBottomWidth: 1, backgroundColor: '#fff' },
+  tabBar:      { flexDirection: 'row', borderBottomWidth: 1 },
   tab:         { flex: 1, alignItems: 'center', paddingVertical: 12 },
   tabActive:   { borderBottomWidth: 3 },
   tabText:     { fontSize: 14, fontWeight: '600' },
