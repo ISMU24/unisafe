@@ -124,7 +124,7 @@ router.post('/', requireAuth, async (req, res) => {
     }));
 
     (await auditLog(req, 'CREATE', 'appeal', appeal.id, null, appeal));
-    emitAppealUpdate(appeal, 'created');
+    await emitAppealUpdate(appeal, 'created');
     res.status(201).json(appeal);
   } catch (err) {
     console.error('POST /appeals error:', err);
@@ -148,7 +148,7 @@ router.patch('/:id/status', requireAuth, requireRole('ADMIN', 'ICT_ADMIN'), asyn
 
     const updated = (await appealsModel.updateAppealStatus(req.params.id, parseResult.data.status, req.user.userId, parseResult.data.decision));
     (await auditLog(req, 'STATUS_CHANGE', 'appeal', req.params.id, { status: existing.status }, { status: parseResult.data.status, decision: parseResult.data.decision }));
-    emitAppealUpdate(updated, 'status-changed');
+    await emitAppealUpdate(updated, 'status-changed');
     res.json(updated);
   } catch (err) {
     console.error('PATCH /appeals/:id/status error:', err);

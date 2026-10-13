@@ -133,7 +133,7 @@ router.post('/', requireAuth, async (req, res) => {
     }));
 
     (await auditLog(req, 'CREATE', 'assistance', request.id, null, request));
-    emitAssistanceUpdate(request, 'created');
+    await emitAssistanceUpdate(request, 'created');
     res.status(201).json(request);
   } catch (err) {
     console.error('POST /assistance error:', err);
@@ -179,7 +179,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
     const updated = (await assistanceModel.updateAssistanceRequest(req.params.id, parseResult.data, req.user.userId));
     (await auditLog(req, 'UPDATE', 'assistance', req.params.id, existing, updated));
-    emitAssistanceUpdate(updated, 'updated');
+    await emitAssistanceUpdate(updated, 'updated');
     res.json(updated);
   } catch (err) {
     console.error('PATCH /assistance/:id error:', err);

@@ -26,6 +26,12 @@ function load({ envUrl, configUrl, legacyUrl, platform = 'android', dev = false,
   const dependencies = {
     'expo-constants': { expoConfig: { extra: { apiUrl: configUrl, EXPO_PUBLIC_API_URL: legacyUrl } } },
     '@react-native-async-storage/async-storage': storage,
+    './session-storage.js': {
+      getToken: () => storage.getItem('token'),
+      getRefreshToken: () => storage.getItem('refreshToken'),
+      storeTokens: tokens => storage.multiSet([['token', tokens.accessToken], ['refreshToken', tokens.refreshToken]]),
+      clearTokens: () => storage.multiRemove(['token', 'refreshToken']),
+    },
     'react-native': { Platform: { OS: platform } },
   };
   vm.runInNewContext(code, {
@@ -88,6 +94,7 @@ test('realtime passes the header and token while retaining subscriptions and cle
     'react-native': { AppState: {} },
     '@react-native-async-storage/async-storage': { getItem: async () => 'access-token' },
     './api.js': { REST_BASE: 'https://api.example' },
+    './session-storage.js': { getToken: async () => 'access-token' },
   };
   const realtime = transformSync(fs.readFileSync(new URL('../src/utils/realtime.js', import.meta.url), 'utf8'), {
     filename: 'realtime.js', configFile: false, babelrc: false,

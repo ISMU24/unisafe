@@ -35,7 +35,7 @@ a discarded design. Delete them; do not reintroduce the SDK.
 - `src/utils/aiTriage.js`, `duplicateDetector.js` — local helpers, no I/O.
 - `src/theme.js` — brand colours, radii, category metadata.
 - `src/data/policyCatalog.js` — bundled policy PDFs (`Assets/Policies/`).
-- `src/data/mock.js`, `src/data/users.js` — **display-only** placeholders, not a
+- `src/data/mock.js` — **display-only** placeholders, not a
   data source. Never render an alert or incident from these when the API is
   reachable; an unreachable API must surface an error.
 - `screens/` — 14 screens: login, home, report, my reports, SOS, alerts, appeals.

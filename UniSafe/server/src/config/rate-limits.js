@@ -34,6 +34,10 @@ const loginKey = req =>
 
 export const loginLimiter = limiter('LOGIN', 10, { skipSuccessfulRequests: true, keyGenerator: loginKey });
 export const refreshLimiter = limiter('REFRESH', 120);
+export const registerLimiter = limiter('REGISTER', 10);
+export const passwordChangeLimiter = limiter('PASSWORD_CHANGE', 10, {
+  keyGenerator: req => req.user.userId,
+});
 // A busy campus sits behind one public address, so the general limit has to be
 // sized for the whole institution rather than a single device.
 export const apiLimiter = limiter('API', process.env.RATE_LIMIT_MAX_REQUESTS || 5000);

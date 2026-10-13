@@ -3,6 +3,11 @@ import z from 'zod';
 import { requireAuth, requireRole } from '../auth/middleware.js';
 import * as recycleBin from '../models/recycle-bin.js';
 import { createAuditLog } from '../models/audit.js';
+import { getIncidentById } from '../models/incidents.js';
+import { getSosEventById as getSosById } from '../models/sos.js';
+import { getAlertById } from '../models/alerts.js';
+import { getAssistanceRequestById as getAssistanceById } from '../models/assistance.js';
+import { getAppealById } from '../models/appeals.js';
 import {
   emitIncidentUpdate,
   emitSosUpdate,
@@ -30,6 +35,7 @@ router.delete('/:type/:id', ...adminOnly, asyncHandler(async (req, res) => {
   const id = idSchema.safeParse(req.params.id);
   if (!type.success || !id.success) return res.status(400).json({ error: 'Invalid recycle-bin record.' });
 
+  const alert = type.data === 'alert' ? await getAlertById(id.data) : null;
   const record = await recycleBin.moveToRecycleBin(type.data, id.data, req.user.userId);
   if (!record) return res.status(404).json({ error: 'Record not found or already in the Recycle Bin.' });
 
@@ -44,7 +50,7 @@ router.delete('/:type/:id', ...adminOnly, asyncHandler(async (req, res) => {
     user_agent: req.get('user-agent'),
   });
 
-  emitRecordUpdate(type.data, record, 'deleted');
+  await emitRecordUpdate(type.data, alert || record, 'deleted');
   res.json({ recycled: true });
 }));
 
@@ -67,7 +73,10 @@ router.post('/:type/:id/restore', ...adminOnly, asyncHandler(async (req, res) =>
     user_agent: req.get('user-agent'),
   });
 
-  emitRecordUpdate(type.data, { id: id.data }, 'restored');
+  const getters = { incident: getIncidentById, sos: getSosById, alert: getAlertById,
+    assistance: getAssistanceById, appeal: getAppealById };
+  const record = getters[type.data] ? await getters[type.data](id.data) : null;
+  if (record) await emitRecordUpdate(type.data, record, 'restored');
   res.json({ restored: true });
 }));
 
@@ -97,16 +106,16 @@ router.delete('/:type/:id/permanent', ...adminOnly, asyncHandler(async (req, res
     user_agent: req.get('user-agent'),
   });
 
-  emitRecordUpdate(type.data, { id: id.data }, 'deleted');
+  await emitRecordUpdate(type.data, { id: id.data }, 'deleted');
   res.json({ permanentlyDeleted: true });
 }));
 
 function emitRecordUpdate(type, record, action) {
-  if (type === 'incident') emitIncidentUpdate(record, action);
-  else if (type === 'sos') emitSosUpdate(record, action);
-  else if (type === 'alert') emitAlertUpdate(record, action);
-  else if (type === 'assistance') emitAssistanceUpdate(record, action);
-  else if (type === 'appeal') emitAppealUpdate(record, action);
+  if (type === 'incident') return emitIncidentUpdate(record, action);
+  if (type === 'sos') return emitSosUpdate(record, action);
+  if (type === 'alert') return emitAlertUpdate(record, action);
+  if (type === 'assistance') return emitAssistanceUpdate(record, action);
+  if (type === 'appeal') return emitAppealUpdate(record, action);
 }
 
 export default router;

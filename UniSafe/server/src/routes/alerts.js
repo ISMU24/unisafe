@@ -4,7 +4,7 @@ import { requireAuth, requireRole } from '../auth/middleware.js';
 import * as alertsModel from '../models/alerts.js';
 import * as auditModel from '../models/audit.js';
 import * as usersModel from '../models/users.js';
-import { emitAlertUpdate, emitAlertToUsers } from '../realtime.js';
+import { emitAlertUpdate } from '../realtime.js';
 
 const router = express.Router();
 router.param('id', (req, res, next, id) => {
@@ -163,8 +163,7 @@ router.post('/', requireAuth, requireRole('ADMIN', 'ICT_ADMIN'), async (req, res
     }
 
     (await auditLog(req, 'CREATE', 'alert', alert.id, null, alert));
-    emitAlertUpdate(alert, 'created');
-    emitAlertToUsers(alert, notifiedUserIds, 'created');
+    await emitAlertUpdate(alert, 'created');
     res.status(201).json(alert);
   } catch (err) {
     console.error('POST /alerts error:', err);
@@ -188,7 +187,7 @@ router.patch('/:id', requireAuth, requireRole('ADMIN', 'ICT_ADMIN'), async (req,
 
     const updated = (await alertsModel.updateAlert(req.params.id, parseResult.data));
     (await auditLog(req, 'UPDATE', 'alert', req.params.id, existing, updated));
-    emitAlertUpdate(updated, 'updated');
+    await emitAlertUpdate(updated, 'updated');
     res.json(updated);
   } catch (err) {
     console.error('PATCH /alerts/:id error:', err);
@@ -207,7 +206,7 @@ router.delete('/:id', requireAuth, requireRole('ADMIN', 'ICT_ADMIN'), async (req
     const deleted = (await alertsModel.deleteAlert(req.params.id));
     if (deleted) {
       (await auditLog(req, 'DELETE', 'alert', req.params.id, existing, null));
-      emitAlertUpdate(existing, 'deleted');
+      await emitAlertUpdate(existing, 'deleted');
       res.json({ deleted: true });
     } else {
       res.status(404).json({ error: 'Alert not found.' });

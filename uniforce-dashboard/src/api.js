@@ -82,6 +82,7 @@ export async function refreshAccessToken(token = getRefreshToken()) {
       const data = await send('POST', '/api/auth/refresh', { refreshToken: token });
       if (version !== sessionVersion) throw new ApiError('This session has ended. Please sign in again.', 401);
       storeSession(data);
+      connectRealtime().catch(() => {});
       return data;
     } catch (error) {
       if (version === sessionVersion && [400, 401, 403].includes(error.status)) clearSession();

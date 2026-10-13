@@ -107,7 +107,7 @@ router.post('/', requireAuth, async (req, res) => {
     }));
 
     (await auditLog(req, 'CREATE', 'sos', sos.id, null, sos));
-    emitSosUpdate(sos, 'created');
+    await emitSosUpdate(sos, 'created');
     res.status(201).json(sos);
   } catch (err) {
     console.error('POST /sos error:', err);
@@ -131,7 +131,7 @@ async function changeSosStatus(req, res) {
 
     const updated = (await sosModel.updateSosStatus(req.params.id, parseResult.data.status, req.user.userId, parseResult.data.note));
     (await auditLog(req, 'STATUS_CHANGE', 'sos', req.params.id, { status: existing.status }, { status: parseResult.data.status, note: parseResult.data.note }));
-    emitSosUpdate(updated, 'status-changed');
+    await emitSosUpdate(updated, 'status-changed');
     res.json(updated);
   } catch (err) {
     console.error('PATCH /sos/:id/status error:', err);

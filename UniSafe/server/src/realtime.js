@@ -1,144 +1,89 @@
-import { Server } from 'socket.io';
-import { verifyAccessToken } from './auth/tokens.js';
+﻿import { Server } from 'socket.io';
+import { verifyAccessToken, sessionMatches } from './auth/tokens.js';
 import { getUserById } from './auth/database.js';
-import { presentIncident } from './auth/incident-access.js';
+import { presentIncident, canViewIncident, isAdministrator } from './auth/incident-access.js';
 
 const RESPONDER_ROLES = ['ADMIN', 'ICT_ADMIN', 'SECURITY', 'MEDICAL'];
-const RESPONDER_ROOM = 'responders';
-
 let io = null;
-
-export function isResponder(roles) {
-  return (roles || []).some((role) => RESPONDER_ROLES.includes(role));
-}
-
-function userRoom(userId) {
-  return `user:${userId}`;
-}
-
-function rolesOf(user) {
-  return (user && Array.isArray(user.roles) ? user.roles : []).filter(
-    (role) => typeof role === 'string' && role
-  );
-}
-
+export function isResponder(roles) { return (roles || []).some(role => RESPONDER_ROLES.includes(role)); }
 async function authenticate(token) {
-  if (typeof token !== 'string' || !token) return null;
-  let payload;
   try {
-    payload = verifyAccessToken(token.replace(/^Bearer\s+/i, ''));
-  } catch {
-    return null;
-  }
-  if (typeof payload?.userId !== 'string') return null;
-  try {
+    if (typeof token !== 'string' || !token) return null;
+    const payload = verifyAccessToken(token);
+    if (typeof payload.userId !== 'string') return null;
     const user = await getUserById(payload.userId);
-    if (!user || !user.is_active) return null;
-    return { userId: user.id, roles: rolesOf(user) };
-  } catch (err) {
-    console.error('Realtime auth lookup failed:', err.message);
-    return null;
-  }
+    if (!sessionMatches(payload, user)) return null;
+    return { userId: user.id, roles: user.roles || [], expiresAt: payload.exp * 1000 };
+  } catch { return null; }
 }
-
-export function initRealtime(server, { corsOptions } = {}) {
-  io = new Server(server, { cors: corsOptions });
-
+export function initRealtime(server, { corsOptions, allowRequest } = {}) {
+  io = new Server(server, { cors: corsOptions, allowRequest });
   io.use(async (socket, next) => {
     const session = await authenticate(socket.handshake?.auth?.token);
     if (!session) return next(new Error('unauthorized'));
     socket.data.user = session;
     next();
   });
-
-  io.on('connection', (socket) => {
-    const { userId, roles } = socket.data.user;
-    socket.join(userRoom(userId));
-    if (isResponder(roles)) socket.join(RESPONDER_ROOM);
-    roles.forEach((role) => socket.join(`role:${role}`));
-
-    // Kept for backwards compatibility with older clients. Room membership is
-    // derived from the authenticated session; client input never grants access.
-    socket.on('join-room', (room) => {
-      if (typeof room !== 'string') return;
-      if (room === RESPONDER_ROOM && !isResponder(roles)) return;
-      if (room.startsWith('user:')) return;
-      socket.join(room);
-    });
-
-    socket.on('leave-room', (room) => {
-      if (typeof room === 'string') socket.leave(room);
-    });
+  io.on('connection', socket => {
+    const { userId, roles, expiresAt } = socket.data.user;
+    const rooms = new Set([`user:${userId}`, ...roles.map(role => `role:${role}`)]);
+    if (isResponder(roles)) rooms.add('responders');
+    rooms.forEach(room => socket.join(room));
+    // Legacy clients can only rejoin rooms originally assigned by the server.
+    // Delivery independently checks current permissions; rooms grant no access.
+    socket.on('join-room', room => { if (rooms.has(room)) socket.join(room); });
+    socket.on('leave-room', room => { if (rooms.has(room)) socket.leave(room); });
+    const expiry = setTimeout(() => {
+      socket.emit('session-expired');
+      socket.disconnect(true);
+    }, Math.max(0, expiresAt - Date.now()));
+    expiry.unref();
+    socket.on('disconnect', () => clearTimeout(expiry));
   });
-
   return io;
 }
+export function getIo() { return io; }
 
-export function getIo() {
-  return io;
+// Recheck database permissions before every delivery, including changes made
+// by another API worker. A stale handshake cannot authorize confidential data.
+// Multi-worker delivery itself requires a shared Socket.IO adapter.
+async function deliver(event, payloadFor) {
+  if (!io) return;
+  await Promise.all([...io.sockets.sockets.values()].map(async socket => {
+    const user = await authenticate(socket.handshake?.auth?.token);
+    if (!user) { socket.disconnect(true); return; }
+    const payload = payloadFor(user);
+    if (payload && socket.connected) socket.emit(event, payload);
+  }));
 }
-
-function emitToResponders(event, payload) {
-  if (io) io.to(RESPONDER_ROOM).emit(event, payload);
-}
-
-function emitToUser(userId, event, payload) {
-  if (io && userId) io.to(userRoom(userId)).emit(event, payload);
-}
-
 export function emitIncidentUpdate(incident, action) {
-  const envelope = { incident, action };
-  if (io) {
-    const rooms = incident?.category === 'Ambulance'
-      ? ['role:ADMIN', 'role:ICT_ADMIN', 'role:MEDICAL']
-      : ['role:ADMIN', 'role:ICT_ADMIN', 'role:SECURITY'];
-    let audience = io;
-    rooms.forEach(room => { audience = audience.to(room); });
-    const responderIncident = presentIncident(incident, { userId: null, roles: [] });
-    audience.emit('incident-update', { incident: responderIncident, action });
-  }
-  if (incident?.reporter_id) emitToUser(incident.reporter_id, 'incident-update', { ...envelope, scope: 'own' });
+  return deliver('incident-update', user => {
+    if (!canViewIncident(user, incident)) return null;
+    return { incident: presentIncident(incident, user), action,
+      ...(incident.reporter_id === user.userId ? { scope: 'own' } : {}) };
+  });
 }
-
 export function emitSosUpdate(sos, action) {
-  const envelope = { sos, action };
-  emitToResponders('sos-update', envelope);
-  if (sos?.reporter_id) emitToUser(sos.reporter_id, 'sos-update', { ...envelope, scope: 'own' });
+  return deliver('sos-update', user => isResponder(user.roles) || sos.reporter_id === user.userId
+    ? { sos, action, ...(sos.reporter_id === user.userId ? { scope: 'own' } : {}) } : null);
 }
-
+function canViewAlert(user, alert) {
+  return isAdministrator(user) || alert.target_all || alert.target_roles?.some(role => user.roles.includes(role));
+}
 export function emitAlertUpdate(alert, action) {
-  emitToResponders('alert-update', { alert, action });
+  return deliver('alert-update', user => canViewAlert(user, alert) ? { alert, action } : null);
 }
-
-/**
- * Push an alert to the specific users it was addressed to, so their phones
- * receive it without polling. Users outside the audience are never notified.
- */
 export function emitAlertToUsers(alert, userIds, action) {
-  if (!alert || !Array.isArray(userIds)) return 0;
-  const targets = [...new Set(userIds.filter(Boolean))];
-  for (const userId of targets) {
-    emitToUser(userId, 'alert-update', { alert, action, scope: 'own' });
-  }
-  return targets.length;
+  const targets = new Set(userIds || []);
+  return deliver('alert-update', user => targets.has(user.userId) && canViewAlert(user, alert)
+    ? { alert, action, scope: 'own' } : null);
 }
-
 export function emitAssistanceUpdate(request, action) {
-  const envelope = { request, action };
-  emitToResponders('assistance-update', envelope);
-  if (request?.requester_id) emitToUser(request.requester_id, 'assistance-update', { ...envelope, scope: 'own' });
+  return deliver('assistance-update', user => isResponder(user.roles) || request.requester_id === user.userId || request.assignee_id === user.userId
+    ? { request, action, ...(request.requester_id === user.userId ? { scope: 'own' } : {}) } : null);
 }
-
 export function emitAppealUpdate(appeal, action) {
-  const envelope = { appeal, action };
-  emitToResponders('appeal-update', envelope);
-  if (appeal?.appellant_id) emitToUser(appeal.appellant_id, 'appeal-update', { ...envelope, scope: 'own' });
+  return deliver('appeal-update', user => isAdministrator(user) || appeal.appellant_id === user.userId
+    ? { appeal, action, ...(appeal.appellant_id === user.userId ? { scope: 'own' } : {}) } : null);
 }
-
-export const REALTIME_EVENTS = [
-  'incident-update',
-  'sos-update',
-  'alert-update',
-  'assistance-update',
-  'appeal-update',
-];
+export const REALTIME_EVENTS = ['incident-update', 'sos-update', 'alert-update', 'assistance-update', 'appeal-update'];

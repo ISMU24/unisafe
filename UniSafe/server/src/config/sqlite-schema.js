@@ -386,6 +386,7 @@ for (const table of ['sos_events', 'safety_alerts', 'assistance_requests', 'appe
 }
 
 for (const [table, column, definition] of [
+  ['users', 'auth_version', 'INTEGER NOT NULL DEFAULT 0'],
   ['incidents', 'incident_type', 'TEXT'],
   ['incident_media', 'file_data', 'BLOB'],
 ]) {

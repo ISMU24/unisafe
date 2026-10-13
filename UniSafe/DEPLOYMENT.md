@@ -236,8 +236,8 @@ so a misconfigured deploy fails loudly instead of running insecurely.
 
 TLS to the database is enabled automatically for known provider hostnames
 (Render, Neon, Supabase, Railway, Azure, Heroku). Override with `DB_SSL=true|false`,
-and use `DB_SSL_REJECT_UNAUTHORIZED` plus `DB_SSL_CA` if you need to verify the
-provider's certificate.
+and supply `DB_SSL_CA` for a private certificate authority. Certificate verification
+is enabled by default; do not disable it to work around a missing CA.
 
 ---
 
@@ -326,6 +326,14 @@ npx expo run:android          # debug build onto a connected device
 A debug build loads JavaScript from Metro, so it only runs while the dev server
 is up. For an APK you can hand to someone, build `release`:
 
+First configure the existing production signing key using
+`UNISAFE_RELEASE_STORE_FILE` (absolute keystore path),
+`UNISAFE_RELEASE_STORE_PASSWORD`, `UNISAFE_RELEASE_KEY_ALIAS`, and
+`UNISAFE_RELEASE_KEY_PASSWORD` in the build environment. Keep passwords out of
+source files and shell history. EAS production builds can inject their managed
+signing configuration instead. The signing guard is reapplied by the
+`with-release-signing.cjs` Expo config plugin during prebuild.
+
 ```powershell
 $env:NODE_ENV = "production"
 cd android
@@ -336,9 +344,9 @@ Output: `android/app/build/outputs/apk/release/app-release.apk`.
 
 - Dropping the two x86 architectures roughly halves the build time and still
   covers every physical phone. Add `x86,x86_64` back for emulators.
-- Release signs with the debug keystore that `expo prebuild` generates. That is
-  enough to sideload onto a device, but it is **not** a Play Store upload key -
-  use the `production` EAS profile for that.
+- Release builds fail if they would use the generated debug keystore. The old
+  `UniSafe-v1.0.0.apk` is debug-signed and predates these security fixes; do not
+  distribute it as a production release. No replacement APK is included.
 - The release variant bundles `index.android.bundle` (Hermes bytecode), so the
   APK is self-contained.
 

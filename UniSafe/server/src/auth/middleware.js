@@ -1,4 +1,4 @@
-import { verifyAccessToken } from './tokens.js';
+import { verifyAccessToken, sessionMatches } from './tokens.js';
 import { getUserById } from './database.js';
 
 export async function requireAuth(req, res, next) {
@@ -12,7 +12,7 @@ export async function requireAuth(req, res, next) {
     const payload = verifyAccessToken(token);
     if (typeof payload.userId !== 'string') return res.status(401).json({ error: 'Invalid token subject.' });
     const user = await getUserById(payload.userId);
-    if (!user || !user.is_active) return res.status(401).json({ error: 'Account unavailable.' });
+    if (!sessionMatches(payload, user)) return res.status(401).json({ error: 'Session expired or account unavailable.' });
     req.user = { userId: user.id, roles: user.roles || [] };
     next();
   } catch (err) {

@@ -14,7 +14,7 @@ let anthropic = null;
 export function init({ apiKey } = {}) {
   const anthropicKey = process.env.ANTHROPIC_API_KEY || apiKey;
   if (anthropicKey) {
-    anthropic = new Anthropic({ apiKey: anthropicKey });
+    anthropic = new Anthropic({ apiKey: anthropicKey, timeout: 30000, maxRetries: 1 });
   }
   loadIndex();
 }
@@ -54,6 +54,7 @@ function cosineSim(a, b) {
 
 async function embedQuestion(question) {
   const resp = await fetch('https://api.voyageai.com/v1/embeddings', {
+    signal: AbortSignal.timeout(15000),
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -102,7 +103,7 @@ export async function answerQuestion(question) {
     if (!key) {
       return { error: 'ANTHROPIC_API_KEY not configured on the server.' };
     }
-    anthropic = new Anthropic({ apiKey: key });
+    anthropic = new Anthropic({ apiKey: key, timeout: 30000, maxRetries: 1 });
   }
 
   let queryEmbedding;

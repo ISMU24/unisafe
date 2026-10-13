@@ -148,10 +148,16 @@ export async function updateUser(id, data, changedBy) {
 
   if (updates.length === 0) return getUserById(id);
 
+  const revoke = data.password_hash !== undefined || data.is_active === false;
+  if (revoke) updates.push('auth_version = auth_version + 1');
+
   updates.push(`updated_at = ?`);
   params.push(now(), id);
 
-  await db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ? AND deleted_at IS NULL`).run(...params);
+  await db.transaction(async () => {
+    await db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ? AND deleted_at IS NULL`).run(...params);
+    if (revoke) await db.prepare("UPDATE refresh_tokens SET revoked = 1, revoked_at = datetime('now') WHERE user_id = ? AND revoked = 0").run(id);
+  });
 
   return getUserById(id);
 }

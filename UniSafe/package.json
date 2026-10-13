@@ -22,6 +22,7 @@
     "expo-font": "~57.0.4",
     "expo-image-picker": "~57.0.20",
     "expo-location": "~57.0.20",
+    "expo-secure-store": "~57.0.4",
     "expo-splash-screen": "~57.0.9",
     "expo-system-ui": "~57.0.4",
     "expo-web-browser": "^57.0.2",
@@ -50,6 +51,10 @@
     "server": "cd server && npm install && npm start",
     "reconcile:policies": "node scripts/reconcile-policies.js",
     "index:policies": "node scripts/build-policy-index.js"
+  },
+  "overrides": {
+    "xcode": { "uuid": "11.1.1" },
+    "@expo/ngrok": { "uuid": "11.1.1" }
   },
   "engines": {
     "node": ">=22.13.0"

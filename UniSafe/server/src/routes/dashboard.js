@@ -7,7 +7,7 @@ import * as assistanceModel from '../models/assistance.js';
 import * as appealsModel from '../models/appeals.js';
 import * as usersModel from '../models/users.js';
 import * as auditModel from '../models/audit.js';
-import { incidentFilters } from '../auth/incident-access.js';
+import { incidentFilters, presentIncident, isAdministrator } from '../auth/incident-access.js';
 
 const router = express.Router();
 
@@ -21,8 +21,9 @@ router.get('/stats', requireAuth, requireRole('ADMIN', 'ICT_ADMIN', 'SECURITY', 
     const incidentStats = (await incidentsModel.getIncidentStats(incidentFilters(req.user)));
     const activeSosCount = (await sosModel.getActiveSosCount());
     const pendingAssistance = (await assistanceModel.listAssistanceRequests({ status: 'Pending', limit: 1 })).length;
-    const pendingAppeals = (await appealsModel.listAppeals({ status: 'Submitted', limit: 1 })).length;
-    const activeAlerts = (await alertsModel.listAlerts({ is_active: true, limit: 1 })).length;
+    const pendingAppeals = (await appealsModel.listAppeals({ status: 'Submitted', limit: 1,
+      ...(isAdministrator(req.user) ? {} : { appellant_id: req.user.userId }) })).length;
+    const activeAlerts = (await alertsModel.getAlertsForUser(req.user.userId, req.user.roles)).length;
 
     res.json({
       incidents: incidentStats,
@@ -42,10 +43,12 @@ router.get('/recent', requireAuth, requireRole('ADMIN', 'ICT_ADMIN', 'SECURITY',
   try {
     // Shared helper, so recent activity honours exactly the same category
     // scoping as the incident list and the statistics above.
-    const recentIncidents = (await incidentsModel.listIncidents(incidentFilters(req.user, { limit: 10 })));
+    const recentIncidents = (await incidentsModel.listIncidents(incidentFilters(req.user, { limit: 10 })))
+      .map(incident => presentIncident(incident, req.user));
     const recentSos = (await sosModel.listSosEvents({ limit: 5 }));
     const recentAssistance = (await assistanceModel.listAssistanceRequests({ limit: 5 }));
-    const recentAppeals = (await appealsModel.listAppeals({ limit: 5 }));
+    const recentAppeals = (await appealsModel.listAppeals({ limit: 5,
+      ...(isAdministrator(req.user) ? {} : { appellant_id: req.user.userId }) }));
 
     res.json({
       incidents: recentIncidents,

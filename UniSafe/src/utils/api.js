@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getToken as token, getRefreshToken, storeTokens, clearTokens } from './session-storage.js';
 
 // Require an explicit API URL from the build environment or app configuration.
 // Missing configuration must not silently target a local machine or emulator.
@@ -23,22 +24,19 @@ const getApiBaseUrl = () => {
 
 const REST_BASE = getApiBaseUrl();
 
-async function token() {
-  return (await AsyncStorage.getItem('token')) || '';
-}
-
 let refreshPromise = null;
 let sessionVersion = 0;
 
 export async function clearSession() {
   sessionVersion += 1;
-  await AsyncStorage.multiRemove(['token', 'refreshToken', 'user']);
+  await clearTokens();
+  await AsyncStorage.multiRemove(['user']);
 }
 
 async function saveTokens(tokens, version) {
   if (!tokens?.accessToken || !tokens?.refreshToken) throw new Error('Invalid authentication response. Please sign in again.');
   if (version !== sessionVersion) throw new Error('Session changed. Please sign in again.');
-  await AsyncStorage.multiSet([['token', tokens.accessToken], ['refreshToken', tokens.refreshToken]]);
+  await storeTokens(tokens);
   return tokens;
 }
 
@@ -46,7 +44,7 @@ async function refreshSession() {
   if (!refreshPromise) {
     const version = sessionVersion;
     refreshPromise = (async () => {
-      const refreshToken = await AsyncStorage.getItem('refreshToken');
+      const refreshToken = await getRefreshToken();
       if (!refreshToken) {
         await clearSession();
         throw new Error('Your session has expired. Please sign in again.');
@@ -125,7 +123,7 @@ export const api = {
   refreshToken: refreshSession,
   logout: async () => {
     if (refreshPromise) await refreshPromise.catch(() => {});
-    const refreshToken = await AsyncStorage.getItem('refreshToken');
+    const refreshToken = await getRefreshToken();
     await clearSession();
     if (refreshToken) return serverRequest('POST', '/api/auth/logout', { refreshToken }, false);
   },

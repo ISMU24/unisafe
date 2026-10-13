@@ -28,6 +28,7 @@
       }
     },
     "android": {
+      "allowBackup": false,
       "package": "ac.pnguot.unisafe",
       "versionCode": 1,
       "adaptiveIcon": {
@@ -41,6 +42,8 @@
       ]
     },
     "plugins": [
+      "expo-secure-store",
+      "./plugins/with-release-signing.cjs",
       [
         "expo-location",
         {

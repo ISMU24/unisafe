@@ -1,122 +1,81 @@
 import { io } from 'socket.io-client';
-import { API_BASE, API_CONFIG_ERROR, getToken } from './api.js';
+import { API_BASE, API_CONFIG_ERROR, getToken, refreshAccessToken } from './api.js';
+const configured = () => !API_CONFIG_ERROR;
+const baseUrl = () => API_BASE || window.location.origin;
+const readToken = getToken;
+const renewSession = refreshAccessToken;
 
 let socket = null;
 let connecting = null;
+let currentToken = '';
+let generation = 0;
 const listeners = new Set();
-
-function notify(status, detail) {
-  listeners.forEach((listener) => {
-    try {
-      listener(status, detail);
-    } catch {
-      /* a broken subscriber must not break the transport */
-    }
-  });
+const statusListeners = new Set();
+const EVENTS = ['incident-update', 'sos-update', 'alert-update', 'assistance-update', 'appeal-update'];
+function notifyStatus(status, detail) {
+  for (const listener of statusListeners) { try { listener(status, detail); } catch {} }
 }
-
-export function getSocket() {
-  return socket;
+export const getSocket = () => socket;
+export function onRealtimeStatus(listener) {
+  statusListeners.add(listener);
+  return () => statusListeners.delete(listener);
 }
-
-export function connectRealtime() {
-  if (API_CONFIG_ERROR) { notify('error', new Error(API_CONFIG_ERROR)); return null; }
-  if (socket) return socket;
-  if (connecting) return connecting;
-
-  const token = getToken();
-  if (!token) return null;
-
-  connecting = new Promise((resolve) => {
-    const client = io(API_BASE || window.location.origin, {
-      path: '/socket.io',
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      extraHeaders: { 'ngrok-skip-browser-warning': 'true' },
-      withCredentials: false,
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 8000,
-      timeout: 10000,
-    });
-
-    client.on('connect', () => {
-      socket = client;
-      connecting = null;
-      notify('connected');
-      resolve(client);
-    });
-
-    client.on('disconnect', (reason) => {
-      notify('disconnected', reason);
-      // A rejected handshake (expired/invalid token) will never recover on its
-      // own, so drop the socket and let the app re-authenticate explicitly.
-      if (reason === 'io server disconnect' || reason === 'io client disconnect') {
-        socket = null;
-        connecting = null;
-      }
-    });
-
-    client.on('connect_error', (err) => {
-      notify('error', err);
-      connecting = null;
-      resolve(null);
-    });
-  });
-
-  return connecting;
-}
-
 export function disconnectRealtime() {
-  if (socket) {
-    socket.removeAllListeners();
-    socket.disconnect();
-  }
+  generation += 1;
+  if (socket) { socket.removeAllListeners(); socket.disconnect(); }
   socket = null;
   connecting = null;
-  notify('disconnected', 'signed-out');
+  currentToken = '';
+  notifyStatus('disconnected', 'signed-out');
 }
-
-export function onRealtimeStatus(listener) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+export function connectRealtime() {
+  if (!configured()) return Promise.resolve(null);
+  if (connecting) return connecting;
+  const version = generation;
+  const attempt = (async () => {
+    const token = await readToken();
+    if (version !== generation) return null;
+    if (socket && token === currentToken) return socket;
+    if (socket) { socket.removeAllListeners(); socket.disconnect(); socket = null; }
+    if (!token) return null;
+    currentToken = token;
+    const client = io(baseUrl(), {
+      path: '/socket.io', auth: { token }, transports: ['websocket', 'polling'],
+      extraHeaders: { 'ngrok-skip-browser-warning': 'true' }, withCredentials: false,
+      reconnection: true, reconnectionDelay: 1000, reconnectionDelayMax: 15000, timeout: 10000,
+    });
+    socket = client; // Retain pending clients so logout can close them too.
+    client.on('connect', () => notifyStatus('connected'));
+    client.on('disconnect', reason => notifyStatus('disconnected', reason));
+    const recoverSession = () => {
+      if (socket !== client) return;
+      disconnectRealtime();
+      const expiredGeneration = generation;
+      renewSession().then(() => {
+        if (generation === expiredGeneration) return connectRealtime();
+      }).catch(error => notifyStatus('error', error));
+    };
+    client.on('session-expired', recoverSession);
+    client.on('connect_error', error => {
+      notifyStatus('error', error);
+      // A token may expire while offline, before the server can send expiry.
+      if (error.message === 'unauthorized') recoverSession();
+    });
+    for (const event of EVENTS) client.on(event, payload => {
+      for (const listener of listeners) {
+        if (listener.event === event) { try { listener.handler(payload); } catch {} }
+      }
+    });
+    return client;
+  })();
+  connecting = attempt;
+  const cleanup = () => { if (connecting === attempt) connecting = null; };
+  attempt.then(cleanup, cleanup);
+  return attempt;
 }
-
-/**
- * Subscribe to a server event. The handler receives the event payload.
- * Falls back silently when the socket is unavailable; callers pair this with
- * the existing polling subscribe helpers as a safety net.
- */
 export function subscribeRealtime(event, handler) {
-  let cancelled = false;
-  let bound = null;
-
-  const bind = (client) => {
-    // connectRealtime() returns the live socket when it is already connected,
-    // but a Promise that resolves to it while the handshake is still in
-    // flight. Subscribing happens during the first render, long before the
-    // socket connects, so the handler must be attached to whichever of the two
-    // turns up - treating the Promise as a client threw
-    // "client.on is not a function" and took down every page that subscribes.
-    if (cancelled || bound || !client || typeof client.on !== 'function') return;
-    bound = client;
-    client.on(event, handler);
-  };
-
-  if (socket) {
-    bind(socket);
-  } else {
-    const pending = connectRealtime();
-    if (pending && typeof pending.then === 'function') {
-      // The handshake failed; the polling fallback in api.js covers this.
-      pending.then(bind, () => {});
-    } else {
-      bind(pending);
-    }
-  }
-
-  return () => {
-    cancelled = true;
-    if (bound) bound.off(event, handler);
-  };
+  const entry = { event, handler };
+  listeners.add(entry);
+  connectRealtime().catch(() => {});
+  return () => listeners.delete(entry);
 }

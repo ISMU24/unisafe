@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, ActivityIndicator, StyleSheet, Image } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getToken } from '../src/utils/session-storage';
 import { useTheme } from '../src/ThemeContext';
 import { api } from '../src/utils/api';
 
@@ -30,7 +30,7 @@ export default function SplashScreen({ navigation }) {
 
     const timer = setTimeout(async () => {
       try {
-        const token = await AsyncStorage.getItem('token');
+        const token = await getToken();
         if (token) await api.me();
         navigation.replace(token ? 'Home' : 'Login');
       } catch {

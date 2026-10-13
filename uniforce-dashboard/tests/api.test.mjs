@@ -26,7 +26,7 @@ async function client({ env = { VITE_API_URL: origin, DEV: false }, fetch, store
   const config = new vm.SourceTextModule(await readFile(new URL('../src/api-config.js', import.meta.url), 'utf8'), { context });
   const realtime = new vm.SyntheticModule(
     ['connectRealtime', 'disconnectRealtime', 'onRealtimeStatus', 'subscribeRealtime'],
-    function () { for (const name of ['connectRealtime', 'disconnectRealtime', 'onRealtimeStatus', 'subscribeRealtime']) this.setExport(name, () => {}); },
+    function () { for (const name of ['connectRealtime', 'disconnectRealtime', 'onRealtimeStatus', 'subscribeRealtime']) this.setExport(name, name === 'connectRealtime' ? async () => null : () => {}); },
     { context },
   );
   const module = new vm.SourceTextModule(await readFile(new URL('../src/api.js', import.meta.url), 'utf8'), {

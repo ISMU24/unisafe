@@ -3,6 +3,7 @@ dist/
 build/
 .expo/
 .expo-shared/
+.verification/
 
 # Environment files — never commit real secrets
 .env

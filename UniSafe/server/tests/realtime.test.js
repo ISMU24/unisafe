@@ -151,7 +151,9 @@ describe('Realtime push (live server subprocess)', () => {
   });
 
   it('returns a clear policy-unavailable response when AI keys are absent', async () => {
-    const res = await api('/api/policy-search', { method: 'POST', body: { question: 'What is the student policy?' } });
+    expect((await api('/api/policy-search', { method: 'POST', body: { question: 'Policy?' } })).status).toBe(401);
+    expect((await api('/api/policy-search', { method: 'POST', token: studentToken, body: { question: 'x'.repeat(2001) } })).status).toBe(400);
+    const res = await api('/api/policy-search', { method: 'POST', token: studentToken, body: { question: 'What is the student policy?' } });
     expect(res.status).toBe(503);
     expect(res.data).toEqual({ code: 'POLICY_UNAVAILABLE',
       error: 'Policy Q&A is not available right now. You can still browse the policies.' });
@@ -169,6 +171,11 @@ describe('Realtime push (live server subprocess)', () => {
     const blocked = await fetch(`${BASE}/health`, { headers: { Origin: 'https://not-allowed.example.test' } });
     expect(blocked.status).toBe(403);
     await blocked.text();
+    const blockedSocket = await fetch(`${BASE}/socket.io/?EIO=4&transport=polling`, {
+      headers: { Origin: 'https://not-allowed.example.test' },
+    });
+    expect(blockedSocket.status).toBe(403);
+    await blockedSocket.text();
   });
 
   it('permits dashboard auth preflight headers and rejects unlisted origins', async () => {

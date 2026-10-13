@@ -60,24 +60,22 @@ pg.types.setTypeParser(20, value => Number(value));
 pg.types.setTypeParser(1700, value => Number(value));
 
 // Managed providers (Render, Supabase, Neon, Railway, Azure, Heroku) require
-// TLS. Certificate verification is relaxed by default because several of them
-// present chains Node does not trust; set DB_SSL_REJECT_UNAUTHORIZED=true and
-// DB_SSL_CA to tighten it.
-function resolveSsl() {
-  const explicit = (process.env.DB_SSL || '').trim().toLowerCase();
+// TLS with certificate verification. Configure DB_SSL_CA for private CA chains.
+export function resolveSsl(targetConnection = connection, env = process.env) {
+  const explicit = (env.DB_SSL || '').trim().toLowerCase();
   if (['false', '0', 'off', 'disable'].includes(explicit)) return false;
-  if (['true', '1', 'on', 'require'].includes(explicit)) return sslOptions();
+  if (['true', '1', 'on', 'require'].includes(explicit)) return sslOptions(env);
 
-  const target = (connection.connectionString || connection.host || '').toLowerCase();
+  const target = (targetConnection?.connectionString || targetConnection?.host || '').toLowerCase();
   if (/(supabase|neon|render\.com|onrender|azure|aws|heroku|elephantsql|railway|fly\.io|cleardb)/.test(target)) {
-    return sslOptions();
+    return sslOptions(env);
   }
   return undefined;
 }
 
-function sslOptions() {
-  const rejectUnauthorized = (process.env.DB_SSL_REJECT_UNAUTHORIZED || '').toLowerCase() === 'true';
-  const ca = process.env.DB_SSL_CA;
+function sslOptions(env) {
+  const rejectUnauthorized = (env.DB_SSL_REJECT_UNAUTHORIZED || '').trim().toLowerCase() !== 'false';
+  const ca = env.DB_SSL_CA;
   return { rejectUnauthorized, ...(ca ? { ca: fs.readFileSync(ca, 'utf-8') } : {}) };
 }
 

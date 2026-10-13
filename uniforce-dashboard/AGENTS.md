@@ -79,11 +79,11 @@ hardcoded list — so it could never show anything the app actually sent.
 `sos-update`; subscribing to one feed still refreshes on the other's events,
 because each subscriber refetches over REST rather than trusting the payload.
 
-### `connectRealtime()` is not synchronous
+### `connectRealtime()` always returns a Promise
 
-It returns the live socket **only if it is already connected**. While the
-handshake is in flight it returns a *Promise*, and on a failed handshake it
-returns `null`. Anything that touches the return value directly will break:
+It resolves to the shared client or `null` when there is no session or valid
+API configuration. Use `getSocket()` only when a synchronous handle is needed.
+Anything that treats the Promise as the client will break:
 
 ```js
 // Wrong - throws "client.on is not a function" on the first render,
@@ -92,9 +92,10 @@ const client = connectRealtime();
 client.on('incident-update', handler);
 ```
 
-Subscription happens during the first render, long before the socket connects,
-so always go through `subscribeRealtime(event, handler)`, which binds now or
-when the handshake resolves and returns a working unsubscribe.
+Always subscribe through `subscribeRealtime(event, handler)`. Its central
+listener set survives token renewal and returns a working unsubscribe. Logout
+closes pending handshakes and cancels late reconnection attempts. The server
+expires sockets with access tokens; clients refresh and reconnect automatically.
 
 Realtime is an enhancement. Every page also refetches on focus, so a broken
 WebSocket makes the UI slower to update, never wrong.

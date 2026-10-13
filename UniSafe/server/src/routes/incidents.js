@@ -7,6 +7,7 @@ import * as auditModel from '../models/audit.js';
 import { canManageIncident, canViewIncident, incidentFilters, presentIncident } from '../auth/incident-access.js';
 import { emitIncidentUpdate } from '../realtime.js';
 import db from '../config/db.js';
+import { uploadLimiter } from '../config/rate-limits.js';
 
 const router = express.Router();
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -230,7 +231,7 @@ router.post('/', requireAuth, async (req, res) => {
 
     const presented = presentIncident(incident, req.user);
     (await auditLog(req, 'CREATE', 'incident', incident.id, null, incident));
-    emitIncidentUpdate(incident, 'created');
+    await emitIncidentUpdate(incident, 'created');
     res.status(201).json(presented);
   } catch (err) {
     console.error('POST /incidents error:', err);
@@ -240,7 +241,7 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // POST /api/incidents/report - atomically save report details and evidence.
-router.post('/report', requireAuth, async (req, res) => {
+router.post('/report', requireAuth, uploadLimiter, async (req, res) => {
   let incident;
   try {
     const { report: submittedReport, files } = await parseImageMultipart(req);
@@ -271,7 +272,7 @@ router.post('/report', requireAuth, async (req, res) => {
     const media = await incidentsModel.getIncidentMedia(incident.id);
     incident = { ...incident, media };
     (await auditLog(req, 'CREATE', 'incident', incident.id, null, incident));
-    emitIncidentUpdate(incident, 'created');
+    await emitIncidentUpdate(incident, 'created');
     res.status(201).json(presentIncident(incident, req.user));
   } catch (err) {
     console.error('POST /incidents/report error:', err.message);
@@ -342,7 +343,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     const updated = (await incidentsModel.updateIncident(req.params.id, parseResult.data, req.user.userId));
     (await auditLog(req, 'UPDATE', 'incident', req.params.id, existing, updated));
     const presented = presentIncident(updated, req.user);
-    emitIncidentUpdate(updated, 'updated');
+    await emitIncidentUpdate(updated, 'updated');
     res.json(presented);
   } catch (err) {
     console.error('PATCH /incidents/:id error:', err);
@@ -377,7 +378,7 @@ router.patch('/:id/status', requireAuth, requireRole('ADMIN', 'ICT_ADMIN', 'SECU
 
     const updated = (await incidentsModel.updateIncidentStatus(req.params.id, parseResult.data.status, req.user.userId, parseResult.data.note));
     (await auditLog(req, 'STATUS_CHANGE', 'incident', req.params.id, { status: existing.status }, { status: parseResult.data.status, note: parseResult.data.note }));
-    emitIncidentUpdate(updated, 'status-changed');
+    await emitIncidentUpdate(updated, 'status-changed');
     res.json(presentIncident(updated, req.user));
   } catch (err) {
     console.error('PATCH /incidents/:id/status error:', err);
@@ -409,7 +410,7 @@ router.post('/:id/assign', requireAuth, requireRole('ADMIN', 'ICT_ADMIN', 'SECUR
 
     const updated = (await incidentsModel.assignIncident(req.params.id, parseResult.data.assignee_id, req.user.userId, parseResult.data.note));
     (await auditLog(req, 'ASSIGN', 'incident', req.params.id, { assignee_id: existing.assignee_id }, { assignee_id: parseResult.data.assignee_id }));
-    emitIncidentUpdate(updated, 'assigned');
+    await emitIncidentUpdate(updated, 'assigned');
     res.json(presentIncident(updated, req.user));
   } catch (err) {
     console.error('POST /incidents/:id/assign error:', err);
@@ -447,7 +448,7 @@ router.delete('/:id', requireAuth, requireRole('ADMIN', 'ICT_ADMIN'), async (req
     const deleted = (await incidentsModel.deleteIncident(req.params.id));
     if (deleted) {
       (await auditLog(req, 'DELETE', 'incident', req.params.id, existing, null));
-      emitIncidentUpdate({ ...existing, deleted_at: new Date().toISOString() }, 'deleted');
+      await emitIncidentUpdate({ ...existing, deleted_at: new Date().toISOString() }, 'deleted');
       res.json({ deleted: true });
     } else {
       res.status(404).json({ error: 'Incident not found.' });

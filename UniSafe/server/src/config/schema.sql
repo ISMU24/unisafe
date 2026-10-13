@@ -43,6 +43,9 @@ CREATE TABLE users (
     deleted_at          TIMESTAMPTZ
 );
 
+-- Additive migration: preserve all existing accounts and records.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_version INTEGER NOT NULL DEFAULT 0;
+
 CREATE TABLE user_roles (
     user_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role_id  SMALLINT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,

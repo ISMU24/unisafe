@@ -20,6 +20,9 @@ import auditRoutes from './src/routes/audit.js';
 import recycleBinRoutes from './src/routes/recycle-bin.js';
 import { seedInitialAdmin } from './src/auth/database.js';
 import db, { checkConnection, isPostgres } from './src/config/db.js';
+import { requireAuth } from './src/auth/middleware.js';
+import { apiLimiter, aiLimiter } from './src/config/rate-limits.js';
+import { policyRoutes } from './src/routes/policies.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
@@ -67,14 +70,13 @@ const CORS_HEADERS = ['Content-Type', 'Authorization', 'Accept', 'ngrok-skip-bro
 function originAllowed(origin) {
   if (!origin) return true;
   if (ALLOWED_ORIGINS.includes(origin)) return true;
-  // Wildcard entry allows any origin (useful for preview deploys).
-  if (ALLOWED_ORIGINS.includes('*')) return true;
   return false;
 }
 
 // Socket.IO must share the exact same allow-list as the HTTP API, otherwise the
 // WebSocket handshake is rejected in production while REST calls succeed.
 initRealtime(httpServer, {
+  allowRequest: (req, callback) => callback(null, originAllowed(req.headers.origin)),
   corsOptions: {
     origin: (origin, callback) => callback(null, originAllowed(origin)),
     methods: CORS_METHODS,
@@ -94,6 +96,7 @@ app.use(cors({
   allowedHeaders: CORS_HEADERS,
 }));
 app.use(express.json({ limit: '1mb' }));
+app.use('/api', apiLimiter);
 
 // ── Health
 // Both public health endpoints report database readiness without authentication.
@@ -129,11 +132,11 @@ app.get('/api/health', async (_, res) => {
 });
 
 // ── RAG policy search (requires ANTHROPIC_API_KEY + VOYAGE_API_KEY on server)
-app.post('/api/policy-search', async (req, res) => {
+app.post('/api/policy-search', requireAuth, aiLimiter, async (req, res) => {
   try {
     const { question } = req.body || {};
-    if (!question || typeof question !== 'string') {
-      return res.status(400).json({ error: 'Missing "question" in request body.' });
+    if (typeof question !== 'string' || !question.trim() || question.length > 2000) {
+      return res.status(400).json({ error: 'Question must contain 1 to 2000 characters.' });
     }
     const result = await answerQuestion(question);
     if (result?.error) {
@@ -152,22 +155,7 @@ app.post('/api/policy-search', async (req, res) => {
 });
 
 // ── Serve PDFs with path traversal protection
-app.get('/api/policies/:folder/:filename', (req, res) => {
-  const folder = path.basename(req.params.folder);
-  const filename = path.basename(req.params.filename);
-  const filePath = path.join(POLICIES_DIR, folder, filename);
-
-  const resolved = path.resolve(filePath);
-  if (!resolved.startsWith(path.resolve(POLICIES_DIR))) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  if (!fs.existsSync(resolved)) {
-    return res.status(404).json({ error: 'Policy not found' });
-  }
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-  fs.createReadStream(resolved).pipe(res);
-});
+app.use('/api/policies', policyRoutes(POLICIES_DIR));
 
 // ── API Routes
 app.use('/api/auth', authRoutes);

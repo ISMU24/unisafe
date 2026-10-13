@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { csvCell } from '../utils/csv.js';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from "recharts";
 import { SectionHeader, LoadingBlock, ErrorBanner } from "../components/UniForceUI.jsx";
 import { blue } from "../services/mockData.js";
@@ -43,7 +44,7 @@ function toCsv(rows) {
   return rows
     .map((row) =>
       [row.id, row.type, row.status, row.priority, row.reporter, row.loc, row.time]
-        .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
+          .map(csvCell)
         .join(","),
     )
     .join("\n");

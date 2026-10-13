@@ -38,7 +38,7 @@ if (process.env.NODE_ENV === 'production') {
 
 export function generateAccessToken(user) {
   return jwt.sign(
-    { userId: user.id, roles: user.roles || [] },
+    { userId: user.id, roles: user.roles || [], sv: user.auth_version ?? 0 },
     process.env.JWT_ACCESS_SECRET,
     { expiresIn: ACCESS_TOKEN_EXPIRES, issuer: 'unisafe', algorithm: 'HS256', jwtid: crypto.randomUUID() },
   );
@@ -46,7 +46,7 @@ export function generateAccessToken(user) {
 
 export function generateRefreshToken(user) {
   return jwt.sign(
-    { userId: user.id, roles: user.roles || [] },
+    { userId: user.id, roles: user.roles || [], sv: user.auth_version ?? 0 },
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: REFRESH_TOKEN_EXPIRES, issuer: 'unisafe', algorithm: 'HS256', jwtid: crypto.randomUUID() },
   );
@@ -62,6 +62,11 @@ export function verifyAccessToken(token) {
 
 export function verifyRefreshToken(token) {
   return jwt.verify(token, process.env.JWT_REFRESH_SECRET, { issuer: 'unisafe', algorithms: ['HS256'] });
+}
+
+export function sessionMatches(payload, user) {
+  // Legacy tokens remain usable until that account is explicitly revoked.
+  return Boolean(user?.is_active) && (payload.sv ?? 0) === (user.auth_version ?? 0);
 }
 
 export async function issueTokenPair(user) {
@@ -82,7 +87,7 @@ export async function rotateRefreshToken(refreshToken) {
       throw new jwt.TokenExpiredError('Invalid or expired refresh token', new Date());
     }
     const user = await getUserById(payload.userId);
-    if (!user || !user.is_active) throw new jwt.JsonWebTokenError('User unavailable');
+    if (!sessionMatches(payload, user)) throw new jwt.JsonWebTokenError('User unavailable');
     const revoked = await revokeRefreshTokenByHash(tokenHash);
     if (revoked !== 1) throw new jwt.JsonWebTokenError('Refresh token already used');
     return issueTokenPair(user);

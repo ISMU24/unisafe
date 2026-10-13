@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import express from 'express';
-import { loginLimiter, refreshLimiter } from '../config/rate-limits.js';
+import { loginLimiter, refreshLimiter, registerLimiter, passwordChangeLimiter } from '../config/rate-limits.js';
 import z from 'zod';
 import { getUserByEmail, createUser, getUserById, updateUserLastLogin, hashPassword, comparePassword, isValidEmail, meetsPasswordStrength, seedInitialAdmin, revokeAllUserRefreshTokens } from './database.js';
 import { issueTokenPair, rotateRefreshToken, revokeRefreshToken } from './tokens.js';
@@ -49,7 +49,7 @@ async function auditLog(req, action, resourceType, resourceId, oldValues, newVal
 
 // ── Auth ──
 
-router.post('/register', loginLimiter, asyncHandler(async (req, res) => {
+router.post('/register', registerLimiter, asyncHandler(async (req, res) => {
   const parseResult = registerSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({ error: 'Invalid input', details: parseResult.error.flatten() });
@@ -169,8 +169,8 @@ const changePasswordSchema = z.object({
 });
 
 // POST /api/auth/change-password - Self-service password change.
-// Reuses loginLimiter so the current password cannot be brute-forced.
-router.post('/change-password', requireAuth, loginRateLimiter, asyncHandler(async (req, res) => {
+// Key by the authenticated account, never an optional client-supplied email.
+router.post('/change-password', requireAuth, passwordChangeLimiter, asyncHandler(async (req, res) => {
   const parseResult = changePasswordSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({ error: 'Invalid input', details: parseResult.error.flatten() });
@@ -198,7 +198,7 @@ router.post('/change-password', requireAuth, loginRateLimiter, asyncHandler(asyn
   // not logged out by their own password change.
   await revokeAllUserRefreshTokens(user.id);
 
-  const tokens = await issueTokenPair(user);
+  const tokens = await issueTokenPair(await getUserById(user.id));
   (await auditLog(req, 'CHANGE_PASSWORD', 'user', user.id, null, { self_service: true }));
   res.json({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
 }));

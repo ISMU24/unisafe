@@ -101,7 +101,10 @@ export async function moveToRecycleBin(type, id, actorId) {
 
     const deletedAt = now();
     await db.prepare(`UPDATE ${table} SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL`).run(deletedAt, id);
-    if (type === 'user') await revokeAllUserRefreshTokens(id);
+    if (type === 'user') {
+      await db.prepare('UPDATE users SET auth_version = auth_version + 1 WHERE id = ?').run(id);
+      await revokeAllUserRefreshTokens(id);
+    }
     return { ...record, deleted_at: deletedAt };
   });
 }
