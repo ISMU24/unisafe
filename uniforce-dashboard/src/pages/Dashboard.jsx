@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileWarning, Siren, Clock, Users } from 'lucide-react'
+import { FileWarning, Siren, Clock, Users, LifeBuoy } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { SectionHeader, StatCard, CatBadge, StatusPill, DutyPill, ErrorBanner } from '../components/UniForceUI.jsx'
-import { subscribeIncidents, subscribePersonnel, subscribeSOSEvents } from '../api.js'
+import { subscribeAssistance, subscribeIncidents, subscribePersonnel, subscribeSOSEvents } from '../api.js'
 import { MAP_MARKERS, blue, red, amber, teal, CAMPUS_CENTRE, buildingForLocation } from '../services/mockData.js'
 import { useTheme } from '../context/ThemeContext.jsx'
 
@@ -92,6 +92,7 @@ function DashMap({ incidents, mapLayer, setMapLayer, expanded, onToggleExpand, T
 export default function Dashboard() {
   const [incidents,  setIncidents]  = useState([])
   const [personnel,  setPersonnel]  = useState([])
+  const [assistance, setAssistance] = useState([])
   const [mapLayer,   setMapLayer]   = useState('satellite')
   const [mapExpanded, setMapExpanded] = useState(false)
   const navigate = useNavigate()
@@ -124,7 +125,12 @@ export default function Dashboard() {
       (rows) => setPersonnel(rows),
       (err) => { if (err) setError(err.message) }
     )
-    return () => { unsubI(); unsubS(); unsubP() }
+    const unsubA = subscribeAssistance(
+      (rows) => setAssistance(rows),
+      {},
+      (err) => { if (err) setError(err.message) }
+    )
+    return () => { unsubI(); unsubS(); unsubP(); unsubA() }
   }, [])
 
   const openIncidents = incidents.filter(i => !['Resolved', 'Closed', 'Cancelled'].includes(i.status))
@@ -134,6 +140,7 @@ export default function Dashboard() {
   const activeSosFromFeed = sosEvents.filter(s => !['Resolved', 'Cancelled'].includes(s.status)).length
   const activeSOS = sosEvents.length > 0 ? activeSosFromFeed : incidents.filter(i => i.isSOS && !['Resolved', 'Cancelled'].includes(i.status)).length
   const onDuty        = personnel.filter(p => p.status === 'On duty').length
+  const openAssistance = assistance.filter(request => !['Completed', 'Cancelled'].includes(request.status))
 
   // Dispatch log merges both feeds, newest first, so an SOS appears alongside
   // reports instead of in a separate list.
@@ -142,6 +149,13 @@ export default function Dashboard() {
     ...sosEvents.map(s => ({
       docId: s.docId, id: s.docId, type: 'Ambulance', desc: s.desc, reporter: s.reporter,
       assignee: s.assignee, loc: s.loc, time: s.time, status: s.status, isSOS: true, _at: s.createdAt,
+    })),
+    ...assistance.map(request => ({
+      docId: request.id, id: String(request.id).slice(0, 8),
+      type: request.type === 'Medical' ? 'Ambulance' : 'Security',
+      desc: `${request.title}${request.description ? ` — ${request.description}` : ''}`,
+      status: request.status, isAssistance: true, _at: request.created_at,
+      time: request.created_at ? new Date(request.created_at).toLocaleString('en-PG') : 'Unknown',
     })),
   ]
     .sort((a, b) => new Date(b._at || 0) - new Date(a._at || 0))
@@ -158,9 +172,10 @@ export default function Dashboard() {
       <SectionHeader title="Security dashboard" sub="Live overview of campus security operations" />
       {error && <ErrorBanner message={error} onRetry={() => window.location.reload()} />}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 22 }}>
         <StatCard label="Open incidents"    value={loading ? '—' : openIncidents.length}  delta="Needs attention"  up={false} icon={FileWarning} color={blue} />
         <StatCard label="Active SOS"        value={loading ? '—' : activeSOS}             delta="Live now"          up={false} icon={Siren}       color={red} />
+        <StatCard label="Open assistance"   value={loading ? '—' : openAssistance.length} delta="Requests awaiting help" up={false} icon={LifeBuoy} color={teal} />
         <StatCard label="Reports tracked"   value={loading ? '—' : incidents.length}       delta="All categories"              icon={Clock}       color={amber} />
         <StatCard label="Personnel on duty" value={loading ? '—' : `${onDuty} / ${personnel.length}`} delta="From responder list"      icon={Users}       color={teal} />
       </div>
@@ -171,7 +186,7 @@ export default function Dashboard() {
           <div style={{ fontSize: 13, fontWeight: 800, color: titleColor, marginBottom: 10 }}>Dispatch log</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {dispatchLog.map(i => (
-              <button key={`${i.isSOS ? 'sos' : 'inc'}-${i.docId}`} onClick={() => navigate(i.isSOS ? '/emergency' : '/incidents', { state: { selectedId: i.docId } })} style={{
+              <button key={`${i.isAssistance ? 'assistance' : i.isSOS ? 'sos' : 'inc'}-${i.docId}`} onClick={() => navigate(i.isAssistance ? '/assistance' : i.isSOS ? '/emergency' : '/incidents', { state: { selectedId: i.docId } })} style={{
                 display: 'flex', alignItems: 'center', gap: 10, background: rowBg, border,
                 borderRadius: 10, padding: '9px 10px', cursor: 'pointer', textAlign: 'left', width: '100%',
               }}>
@@ -184,7 +199,7 @@ export default function Dashboard() {
             ))}
             {dispatchLog.length === 0 && (
               <div style={{ fontSize: 12, color: subColor, padding: '10px 2px' }}>
-                {loading ? 'Loading…' : 'No reports yet. New reports and SOS alerts appear here as they arrive.'}
+                {loading ? 'Loading…' : 'No activity yet. New reports, SOS alerts, and assistance requests appear here as they arrive.'}
               </div>
             )}
           </div>

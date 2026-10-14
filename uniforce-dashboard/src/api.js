@@ -257,6 +257,7 @@ export async function getAssistance(filters = {}) { return list(await req('GET',
 export function subscribeAssistance(cb, filters = {}, onError, interval = 5000) {
   return subscribe(() => getAssistance(filters), cb, onError, interval, ['assistance-update']);
 }
+export function updateAssistance(id, fields) { return req('PATCH', `/api/assistance/${encodeURIComponent(id)}`, fields); }
 export async function getAppeals(filters = {}) { return list(await req('GET', `/api/appeals${buildQuery(filters)}`), 'appeals'); }
 export function subscribeAppeals(cb, filters = {}, onError, interval = 5000) {
   return subscribe(() => getAppeals(filters), cb, onError, interval, ['appeal-update']);

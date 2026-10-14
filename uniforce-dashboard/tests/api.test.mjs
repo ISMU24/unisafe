@@ -71,6 +71,22 @@ test('login, refresh, protected calls and logout use the exact backend paths', a
   assert.equal(api.getToken(), null);
 });
 
+test('assistance requests use the backend list and update endpoints', async () => {
+  const requestId = '4d3f0a0d-cc2d-4e82-993c-b099f3bbda46';
+  const { api, calls } = await client({
+    stored: { uf_token: pair.accessToken, uf_refresh_token: pair.refreshToken },
+    fetch: async (url, options) => url.includes('/api/assistance?')
+      ? json([{ id: requestId }])
+      : json({ id: requestId, status: 'Assigned' }),
+  });
+  assert.deepEqual(await api.getAssistance({ status: 'Pending' }), [{ id: requestId }]);
+  assert.deepEqual(await api.updateAssistance(requestId, { status: 'Assigned' }), { id: requestId, status: 'Assigned' });
+  assert.equal(calls[0].url, `${origin}/api/assistance?status=Pending`);
+  assert.equal(calls[1].url, `${origin}/api/assistance/${requestId}`);
+  assert.equal(calls[1].method, 'PATCH');
+  assert.deepEqual(JSON.parse(calls[1].body), { status: 'Assigned' });
+});
+
 test('unconfigured development sends relative URLs to the Vite proxy', async () => {
   const { api, calls } = await client({ env: { DEV: true }, fetch: async () => json(pair) });
   await api.login('test@example.test', 'fixture');

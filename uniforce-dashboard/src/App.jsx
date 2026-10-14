@@ -9,6 +9,7 @@ const DashboardLayout = lazy(() => import('./layouts/Dashboardlayout.jsx'))
 const Login = lazy(() => import('./pages/Login.jsx'))
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'))
 const Emergency = lazy(() => import('./pages/Emergency.jsx'))
+const Assistance = lazy(() => import('./pages/Assistance.jsx'))
 const Incidents = lazy(() => import('./pages/Incidents.jsx'))
 const Analytics = lazy(() => import('./pages/Analytics.jsx'))
 const Reports = lazy(() => import('./pages/Reports.jsx'))
@@ -49,6 +50,7 @@ function AppRoutes() {
         }>
           <Route index element={<Dashboard />} />
           <Route path="emergency" element={<RoleRoute allow={RESPONDER_ROLES}><Emergency /></RoleRoute>} />
+          <Route path="assistance" element={<RoleRoute allow={RESPONDER_ROLES}><Assistance /></RoleRoute>} />
           <Route path="incidents" element={<Incidents />} />
           <Route path="analytics" element={<RoleRoute allow={RESPONDER_ROLES}><Analytics /></RoleRoute>} />
           <Route path="reports" element={<Reports />} />

@@ -18,7 +18,7 @@ database and no client-side data store — it is REST + Socket.IO only.
 - `src/services/mockData.js` — campus building map and palette **only**.
   Never use it as a data source for incidents, alerts, or users.
 - `src/utils/roles.js` — role → route/nav visibility mapping.
-- `src/pages/` — Dashboard, Incidents, Emergency, Alerts via NotificationBell,
+- `src/pages/` — Dashboard, Incidents, Emergency, Assistance, Alerts via NotificationBell,
   Analytics, Reports, Users, AI Tools, Profile, Settings, Login.
 - `src/pages/RecycleBin.jsx` — administrator-only restore/permanent-delete UI.
 - `src/components/` — Navbar, Sidebar, NotificationBell, DashboardCard,
@@ -66,9 +66,10 @@ Any view that must show emergencies therefore has to read *both*:
 
 | Page | Feeds | Notes |
 |---|---|---|
-| `/` Dashboard | `subscribeIncidents` + `subscribeSOSEvents` | The "Active SOS" tile counts the SOS feed. It once counted only incidents, so a real SOS never moved the number. The dispatch log merges both, newest first. |
+| `/` Dashboard | `subscribeIncidents` + `subscribeSOSEvents` + `subscribeAssistance` | The "Active SOS" tile counts the SOS feed. The dispatch log merges reports, SOS alerts, and assistance requests, newest first. |
 | `/incidents` | `subscribeIncidents` | Reports only. |
 | `/emergency` | `subscribeSOSEvents` | SOS only. |
+| `/assistance` | `subscribeAssistance` | Open assistance requests for responders, with status updates. |
 | Notification bell | `subscribeAlerts` | Reads `/api/alerts/my`. |
 
 `/api/alerts` is restricted to ADMIN and ICT_ADMIN, so the bell uses

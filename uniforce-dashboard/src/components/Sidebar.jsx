@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Shield, LayoutGrid, FileWarning, Radio, Users, BarChart3, UserCog, LogOut, Sparkles, ClipboardList, Trash2 } from "lucide-react";
+import { Shield, LayoutGrid, FileWarning, Radio, Users, BarChart3, UserCog, LogOut, Sparkles, ClipboardList, Trash2, LifeBuoy } from "lucide-react";
 import { ink } from "../services/mockData.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { RESPONDER_ROLES, ADMIN_ROLES, roleLabel } from "../utils/roles.js";
@@ -7,6 +7,7 @@ import { RESPONDER_ROLES, ADMIN_ROLES, roleLabel } from "../utils/roles.js";
 const navItems = [
   { to: "/", icon: LayoutGrid, label: "Dashboard", end: true },
   { to: "/emergency", icon: Radio, label: "Emergency dashboard", allow: RESPONDER_ROLES },
+  { to: "/assistance", icon: LifeBuoy, label: "Assistance requests", allow: RESPONDER_ROLES },
   { to: "/incidents", icon: FileWarning, label: "View incidents" },
   { to: "/reports", icon: BarChart3, label: "Reports & analytics", allow: RESPONDER_ROLES },
   { to: "/users", icon: UserCog, label: "User management" },
